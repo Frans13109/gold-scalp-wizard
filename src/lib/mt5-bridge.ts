@@ -1,6 +1,8 @@
 /**
  * Future READ-ONLY MT5 bridge contract.
- * A Python service on Windows (MetaTrader5 package) will expose market data only.
+ * A Python service on Windows (MetaTrader5 package) attached to a locally logged-in
+ * Exness MT5 terminal will expose XAUUSD market data only. Broker login stays inside
+ * the MT5 terminal on Windows; this app never receives passwords or secrets.
  * It must NEVER accept order requests or broker passwords. Not implemented yet.
  */
 import type { Candle, Timeframe } from "./market";
