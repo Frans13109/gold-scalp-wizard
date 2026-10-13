@@ -2,9 +2,16 @@ import { type Candle, at, indicators } from "./market";
 import type { StrategySettings } from "./settings";
 
 export type Signal = {
-  id: string; side: "BUY" | "SELL"; time: number; entryLow: number; entryHigh: number;
-  sl: number; tp: number; tp2: number; rr: number; score: number; expiresAt: number; invalidation: string; reasons: string[]; demo: true;
+  id: string; side: "BUY" | "SELL"; time: number; entry: number; entryLow: number; entryHigh: number;
+  sl: number; tp: number; tp2: number; rr: number; rr2: number; rrWorst: number;
+  /** Confluence score: % of strategy checks passed. NOT a win probability. */
+  score: number; expiresAt: number; invalidation: string; reasons: string[]; demo: true;
 };
+
+/** Reward-to-risk measured from a fill price. */
+export function rrOf(entry: number, sl: number, tp: number): number {
+  return Math.abs(tp - entry) / Math.abs(entry - sl);
+}
 
 export function trendOf(m15: Candle[], i = m15.length - 1): "UP" | "DOWN" | "RANGE" {
   const ind = indicators(m15.slice(0, i + 1));
@@ -27,24 +34,36 @@ export function scan(m5: Candle[], m15: Candle[], s: StrategySettings): Signal[]
     for (const side of ["BUY", "SELL"] as const) {
       const up = side === "BUY";
       if (!cross(ind.ema9, ind.ema21, up)) continue;
-      const reasons = [`M5 EMA9 crossed ${up ? "above" : "below"} EMA21`];
-      if (s.requireTrendAlignment) { if (trend !== (up ? "UP" : "DOWN")) continue; reasons.push(`M15 trend ${trend}`); }
-      const r = at(ind.rsi, i);
-      if (up ? r < s.rsiBuyMin : r > s.rsiSellMax) continue;
-      reasons.push(`RSI ${r.toFixed(1)}`);
-      if (s.requireMacdConfirm) { const h = at(ind.macd.hist, i); if (up ? h <= 0 : h >= 0) continue; reasons.push("MACD histogram confirms"); }
-      if (s.requireCandleConfirm) { const c = at(m5, i); if (up ? c.c <= c.o : c.c >= c.o) continue; reasons.push(`${up ? "Bullish" : "Bearish"} confirmation candle`); }
-      if (!spreadOk) continue;
-      const a = at(ind.atr, i), bar = at(m5, i), px = bar.c;
-      const sl = up ? px - a * s.slAtrMult : px + a * s.slAtrMult;
-      const risk = Math.abs(px - sl);
-      const tp = up ? px + risk * s.minRR : px - risk * s.minRR;
-      const tp2 = up ? px + risk * s.minRR * 1.6 : px - risk * s.minRR * 1.6;
-      let score = 40 + reasons.length * 10;
-      if (trend === (up ? "UP" : "DOWN")) score += 10;
-      score = Math.min(100, score);
+      const bar = at(m5, i), r = at(ind.rsi, i), h = at(ind.macd.hist, i);
+      // Each confluence check is evaluated independently; "required" ones also gate the signal.
+      const checks = {
+        trend: trend === (up ? "UP" : "DOWN"),
+        momentum: up ? r >= s.rsiBuyMin : r <= s.rsiSellMax,
+        macd: up ? h > 0 : h < 0,
+        candle: up ? bar.c > bar.o : bar.c < bar.o,
+        spread: spreadOk,
+      };
+      if (s.requireTrendAlignment && !checks.trend) continue;
+      if (!checks.momentum) continue;
+      if (s.requireMacdConfirm && !checks.macd) continue;
+      if (s.requireCandleConfirm && !checks.candle) continue;
+      if (!checks.spread) continue;
+      const reasons = [`M5 EMA9 crossed ${up ? "above" : "below"} EMA21`, `M15 trend ${trend}`, `RSI ${r.toFixed(1)}`];
+      if (checks.macd) reasons.push("MACD histogram confirms");
+      if (checks.candle) reasons.push(`${up ? "Bullish" : "Bearish"} confirmation candle`);
+      const passed = Object.values(checks).filter(Boolean).length;
+      const confluence = Math.round((passed / Object.keys(checks).length) * 100);
+      const a = at(ind.atr, i), entry = bar.c, dir = up ? 1 : -1;
+      const sl = entry - dir * a * s.slAtrMult;
+      const risk = Math.abs(entry - sl);
+      const tp = entry + dir * risk * s.minRR;
+      const tp2 = entry + dir * risk * s.minRR * 1.6;
+      const entryLow = entry - a * 0.15, entryHigh = entry + a * 0.15;
+      const worst = up ? entryHigh : entryLow;
       const invalidation = `M5 close ${up ? "below" : "above"} ${sl.toFixed(2)} or M15 trend flips`;
-      out.push({ id: `${side}-${bar.t}`, side, time: bar.t, entryLow: px - a * 0.15, entryHigh: px + a * 0.15, sl, tp, tp2, rr: s.minRR, score, expiresAt: bar.t + 3 * 300000, invalidation, reasons, demo: true });
+      out.push({ id: `${side}-${bar.t}`, side, time: bar.t, entry, entryLow, entryHigh, sl, tp, tp2,
+        rr: rrOf(entry, sl, tp), rr2: rrOf(entry, sl, tp2), rrWorst: rrOf(worst, sl, tp),
+        score: confluence, expiresAt: bar.t + 3 * 300000, invalidation, reasons, demo: true });
     }
   }
   return out.reverse();
