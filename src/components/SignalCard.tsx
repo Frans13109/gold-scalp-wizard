@@ -3,7 +3,7 @@ import { DemoTag } from "./AppShell";
 
 const f = (n: number) => n.toFixed(2);
 
-export function SignalCard({ side, signal }: { side: "BUY" | "SELL"; signal?: Signal }) {
+export function SignalCard({ side, signal }: { side: "BUY" | "SELL"; signal?: Signal | undefined }) {
   const bull = side === "BUY";
   return (
     <div className={`panel border-l-4 p-4 ${bull ? "border-l-bull" : "border-l-bear"}`}>
