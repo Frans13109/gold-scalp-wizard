@@ -26,7 +26,7 @@ function Connection() {
         <p className="mt-2 text-sm text-muted-foreground">No MetaTrader 5 bridge has been configured or verified. All prices and signals in this app are demo data.</p>
       </Panel>
       <Panel title="Planned read-only bridge interface">
-        <p className="mb-3 text-sm text-muted-foreground">A future Python service on Windows will read XAU/USD data from MT5 and expose these endpoints. It will be market-data only.</p>
+        <p className="mb-3 text-sm text-muted-foreground">A future Python service on Windows will read XAUUSD data from your locally logged-in Exness MT5 terminal and expose these endpoints. It will be market-data only.</p>
         <ul className="space-y-2">
           {bridgeEndpoints.map((e) => (
             <li key={e.path} className="rounded-md bg-secondary p-3 text-sm">
