@@ -8,3 +8,4 @@
 > Commits you push to the connected branch sync back to Lovable and show up in
 > the editor, so keep the branch in a working state.
 <!-- LOVABLE:END -->
+- Index arrays via `at()` from src/lib/market.ts; strict noUncheckedIndexedAccess stays on — why: catches out-of-range reads in indicator math.

@@ -11,7 +11,7 @@ const nav = [
 export function AppShell({ children }: { children: ReactNode }) {
   return (
     <div className="min-h-screen pb-20 md:pb-0">
-      <div className="demo-stripes px-3 py-1.5 text-center text-xs font-bold tracking-wide">
+      <div className="demo-stripes px-3 py-2 text-center text-sm font-bold tracking-wide">
         DEMO MODE — synthetic data only. Not live prices. Signals only, no trading.
       </div>
       <header className="sticky top-0 z-20 border-b bg-surface/90 backdrop-blur">
@@ -27,13 +27,13 @@ export function AppShell({ children }: { children: ReactNode }) {
               </Link>
             ))}
           </nav>
-          <span className="shrink-0 rounded-full border border-bear/40 px-2.5 py-1 text-[11px] font-semibold text-bear">MT5: NOT CONNECTED</span>
+          <span className="shrink-0 rounded-full border border-bear/40 px-3 py-1.5 text-xs font-bold text-bear sm:text-sm">MT5 STATUS: NOT CONNECTED</span>
         </div>
       </header>
       <main className="mx-auto max-w-7xl px-3 py-4 sm:px-4">{children}</main>
       <nav className="fixed inset-x-0 bottom-0 z-20 grid grid-cols-4 border-t bg-surface md:hidden">
         {nav.map((n) => (
-          <Link key={n.to} to={n.to} activeOptions={{ exact: true }} className="py-3 text-center text-xs text-muted-foreground" activeProps={{ className: "text-gold font-semibold" }}>
+          <Link key={n.to} to={n.to} activeOptions={{ exact: true }} className="py-4 text-center text-sm text-muted-foreground" activeProps={{ className: "text-gold font-semibold" }}>
             {n.label}
           </Link>
         ))}
@@ -46,7 +46,7 @@ export function Panel({ title, children, right }: { title: string; children: Rea
   return (
     <section className="panel p-4">
       <div className="mb-3 flex items-center justify-between gap-2">
-        <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{title}</h2>
+        <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">{title}</h2>
         {right}
       </div>
       {children}
@@ -55,5 +55,5 @@ export function Panel({ title, children, right }: { title: string; children: Rea
 }
 
 export function DemoTag() {
-  return <span className="rounded bg-warn px-1.5 py-0.5 text-[10px] font-bold text-warn-foreground">DEMO</span>;
+  return <span className="rounded bg-warn px-2 py-0.5 text-xs font-bold text-warn-foreground">DEMO DATA</span>;
 }
