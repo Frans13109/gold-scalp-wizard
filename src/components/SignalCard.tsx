@@ -16,9 +16,9 @@ export function SignalCard({ side, signal }: { side: "BUY" | "SELL"; signal?: Si
         <>
           <dl className="grid grid-cols-2 gap-x-3 gap-y-3">
             <Field k="Entry" v={f(signal.entry)} />
-            <Field k="Entry zone" v={`${f(signal.entryLow)}–${f(signal.entryHigh)}`} />
-            <Field k="Stop loss" v={f(signal.sl)} cls="text-bear" />
             <Field k="Expires" v={time(signal.expiresAt)} />
+            <Field k="Entry zone" v={`${f(signal.entryLow)} – ${f(signal.entryHigh)}`} wide />
+            <Field k="Stop loss" v={f(signal.sl)} cls="text-bear" wide />
             <Field k={`TP1 · 1:${signal.rr.toFixed(2)}`} v={f(signal.tp)} cls="text-bull" />
             <Field k={`TP2 · 1:${signal.rr2.toFixed(2)}`} v={f(signal.tp2)} cls="text-bull" />
           </dl>
@@ -42,9 +42,9 @@ export function SignalCard({ side, signal }: { side: "BUY" | "SELL"; signal?: Si
   );
 }
 
-function Field({ k, v, cls = "" }: { k: string; v: string; cls?: string }) {
+function Field({ k, v, cls = "", wide = false }: { k: string; v: string; cls?: string; wide?: boolean }) {
   return (
-    <div className="min-w-0">
+    <div className={`min-w-0 ${wide ? "col-span-2" : ""}`}>
       <dt className="text-sm text-muted-foreground">{k}</dt>
       <dd className={`num truncate text-lg font-semibold ${cls}`}>{v}</dd>
     </div>
