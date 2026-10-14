@@ -14,6 +14,21 @@ export type Database = {
   }
   public: {
     Tables: {
+      bridge_request_log: {
+        Row: {
+          received_at: string
+          request_id: string
+        }
+        Insert: {
+          received_at?: string
+          request_id: string
+        }
+        Update: {
+          received_at?: string
+          request_id?: string
+        }
+        Relationships: []
+      }
       connection_health: {
         Row: {
           checked_at: string
@@ -208,14 +223,80 @@ export type Database = {
         }
         Relationships: []
       }
+      subscriptions: {
+        Row: {
+          active: boolean
+          created_at: string
+          ends_at: string | null
+          granted_by: string | null
+          id: string
+          note: string | null
+          starts_at: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          ends_at?: string | null
+          granted_by?: string | null
+          id?: string
+          note?: string | null
+          starts_at?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          ends_at?: string | null
+          granted_by?: string | null
+          id?: string
+          note?: string | null
+          starts_at?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_roles: {
+        Row: {
+          created_at: string
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      has_active_subscription: { Args: { _user_id: string }; Returns: boolean }
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
+      public_bridge_status: { Args: never; Returns: string }
     }
     Enums: {
+      app_role: "admin" | "subscriber"
       bridge_status: "NOT_CONNECTED" | "CONNECTING" | "CONNECTED" | "ERROR"
       data_source: "mt5_bridge" | "demo"
       signal_outcome: "tp1" | "tp2" | "sl" | "expired" | "invalidated"
@@ -349,6 +430,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      app_role: ["admin", "subscriber"],
       bridge_status: ["NOT_CONNECTED", "CONNECTING", "CONNECTED", "ERROR"],
       data_source: ["mt5_bridge", "demo"],
       signal_outcome: ["tp1", "tp2", "sl", "expired", "invalidated"],
