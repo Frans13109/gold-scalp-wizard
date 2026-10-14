@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { Panel, DemoTag } from "@/components/AppShell";
 import { useDemoMarket } from "@/lib/use-demo";
 
-export const Route = createFileRoute("/signals")({
+export const Route = createFileRoute("/_authenticated/signals")({
   head: () => ({
     meta: [
       { title: "Signal History — GoldScalp AI" },
