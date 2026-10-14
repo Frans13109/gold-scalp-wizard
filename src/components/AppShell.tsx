@@ -1,5 +1,31 @@
-import { Link } from "@tanstack/react-router";
+import { Link, useNavigate } from "@tanstack/react-router";
+import { useQueryClient } from "@tanstack/react-query";
 import type { ReactNode } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { useUser } from "@/lib/use-session";
+
+function AccountButton() {
+  const user = useUser();
+  const navigate = useNavigate();
+  const qc = useQueryClient();
+  const cls = "rounded-md border px-3 py-1.5 text-xs font-semibold sm:text-sm";
+  if (user === undefined) return null;
+  if (!user) return <Link to="/auth" className={cls}>Sign in</Link>;
+  return (
+    <button
+      className={cls}
+      title={user.email ?? undefined}
+      onClick={async () => {
+        await qc.cancelQueries();
+        qc.clear();
+        await supabase.auth.signOut();
+        navigate({ to: "/auth", replace: true });
+      }}
+    >
+      Sign out
+    </button>
+  );
+}
 
 const nav = [
   { to: "/", label: "Dashboard" },
@@ -27,7 +53,10 @@ export function AppShell({ children }: { children: ReactNode }) {
               </Link>
             ))}
           </nav>
-          <span className="shrink-0 rounded-full border border-bear/40 px-3 py-1.5 text-xs font-bold text-bear sm:text-sm">MT5 STATUS: NOT CONNECTED</span>
+          <div className="flex shrink-0 items-center gap-2">
+            <span className="rounded-full border border-bear/40 px-3 py-1.5 text-xs font-bold text-bear sm:text-sm">MT5 STATUS: NOT CONNECTED</span>
+            <AccountButton />
+          </div>
         </div>
       </header>
       <main className="mx-auto max-w-7xl px-3 py-4 sm:px-4">{children}</main>

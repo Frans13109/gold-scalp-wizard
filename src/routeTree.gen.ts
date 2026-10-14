@@ -10,6 +10,8 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
+import { Route as AuthRouteImport } from './routes/auth'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as AuthenticatedConnectionRouteImport } from './routes/_authenticated/connection'
 import { Route as AuthenticatedSignalsRouteImport } from './routes/_authenticated/signals'
@@ -19,30 +21,41 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
+  id: '/_authenticated',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthRoute = AuthRouteImport.update({
+  id: '/auth',
+  path: '/auth',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SettingsRoute = SettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthenticatedConnectionRoute = AuthenticatedConnectionRouteImport.update({
-  id: '/_authenticated/connection',
+  id: '/connection',
   path: '/connection',
-  getParentRoute: () => rootRouteImport,
+  getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedSignalsRoute = AuthenticatedSignalsRouteImport.update({
-  id: '/_authenticated/signals',
+  id: '/signals',
   path: '/signals',
-  getParentRoute: () => rootRouteImport,
+  getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/auth': typeof AuthRoute
   '/settings': typeof SettingsRoute
   '/connection': typeof AuthenticatedConnectionRoute
   '/signals': typeof AuthenticatedSignalsRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/auth': typeof AuthRoute
   '/settings': typeof SettingsRoute
   '/connection': typeof AuthenticatedConnectionRoute
   '/signals': typeof AuthenticatedSignalsRoute
@@ -50,18 +63,22 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
+  '/auth': typeof AuthRoute
   '/settings': typeof SettingsRoute
   '/_authenticated/connection': typeof AuthenticatedConnectionRoute
   '/_authenticated/signals': typeof AuthenticatedSignalsRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/settings' | '/connection' | '/signals'
+  fullPaths: '/' | '/auth' | '/settings' | '/connection' | '/signals'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/settings' | '/connection' | '/signals'
+  to: '/' | '/auth' | '/settings' | '/connection' | '/signals'
   id:
     | '__root__'
     | '/'
+    | '/_authenticated'
+    | '/auth'
     | '/settings'
     | '/_authenticated/connection'
     | '/_authenticated/signals'
@@ -69,9 +86,9 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
+  AuthRoute: typeof AuthRoute
   SettingsRoute: typeof SettingsRoute
-  AuthenticatedConnectionRoute: typeof AuthenticatedConnectionRoute
-  AuthenticatedSignalsRoute: typeof AuthenticatedSignalsRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -81,6 +98,20 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated': {
+      id: '/_authenticated'
+      path: ''
+      fullPath: '/'
+      preLoaderRoute: typeof AuthenticatedRouteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/auth': {
+      id: '/auth'
+      path: '/auth'
+      fullPath: '/auth'
+      preLoaderRoute: typeof AuthRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/settings': {
@@ -95,23 +126,36 @@ declare module '@tanstack/react-router' {
       path: '/connection'
       fullPath: '/connection'
       preLoaderRoute: typeof AuthenticatedConnectionRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/signals': {
       id: '/_authenticated/signals'
       path: '/signals'
       fullPath: '/signals'
       preLoaderRoute: typeof AuthenticatedSignalsRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
     }
   }
 }
 
-const rootRouteChildren: RootRouteChildren = {
-  IndexRoute: IndexRoute,
-  SettingsRoute: SettingsRoute,
+interface AuthenticatedRouteRouteChildren {
+  AuthenticatedConnectionRoute: typeof AuthenticatedConnectionRoute
+  AuthenticatedSignalsRoute: typeof AuthenticatedSignalsRoute
+}
+
+const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedConnectionRoute: AuthenticatedConnectionRoute,
   AuthenticatedSignalsRoute: AuthenticatedSignalsRoute,
+}
+
+const AuthenticatedRouteRouteWithChildren =
+  AuthenticatedRouteRoute._addFileChildren(AuthenticatedRouteRouteChildren)
+
+const rootRouteChildren: RootRouteChildren = {
+  IndexRoute: IndexRoute,
+  AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
+  AuthRoute: AuthRoute,
+  SettingsRoute: SettingsRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
