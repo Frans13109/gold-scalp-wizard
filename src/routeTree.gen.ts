@@ -15,6 +15,7 @@ import { Route as AuthRouteImport } from './routes/auth'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as AuthenticatedConnectionRouteImport } from './routes/_authenticated/connection'
 import { Route as AuthenticatedSignalsRouteImport } from './routes/_authenticated/signals'
+import { Route as ApiPublicBridgeIngestRouteImport } from './routes/api/public/bridge/ingest'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -45,6 +46,11 @@ const AuthenticatedSignalsRoute = AuthenticatedSignalsRouteImport.update({
   path: '/signals',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const ApiPublicBridgeIngestRoute = ApiPublicBridgeIngestRouteImport.update({
+  id: '/api/public/bridge/ingest',
+  path: '/api/public/bridge/ingest',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -52,6 +58,7 @@ export interface FileRoutesByFullPath {
   '/settings': typeof SettingsRoute
   '/connection': typeof AuthenticatedConnectionRoute
   '/signals': typeof AuthenticatedSignalsRoute
+  '/api/public/bridge/ingest': typeof ApiPublicBridgeIngestRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -59,6 +66,7 @@ export interface FileRoutesByTo {
   '/settings': typeof SettingsRoute
   '/connection': typeof AuthenticatedConnectionRoute
   '/signals': typeof AuthenticatedSignalsRoute
+  '/api/public/bridge/ingest': typeof ApiPublicBridgeIngestRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -68,12 +76,25 @@ export interface FileRoutesById {
   '/settings': typeof SettingsRoute
   '/_authenticated/connection': typeof AuthenticatedConnectionRoute
   '/_authenticated/signals': typeof AuthenticatedSignalsRoute
+  '/api/public/bridge/ingest': typeof ApiPublicBridgeIngestRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/auth' | '/settings' | '/connection' | '/signals'
+  fullPaths:
+    | '/'
+    | '/auth'
+    | '/settings'
+    | '/connection'
+    | '/signals'
+    | '/api/public/bridge/ingest'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/auth' | '/settings' | '/connection' | '/signals'
+  to:
+    | '/'
+    | '/auth'
+    | '/settings'
+    | '/connection'
+    | '/signals'
+    | '/api/public/bridge/ingest'
   id:
     | '__root__'
     | '/'
@@ -82,6 +103,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/_authenticated/connection'
     | '/_authenticated/signals'
+    | '/api/public/bridge/ingest'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -89,6 +111,7 @@ export interface RootRouteChildren {
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   AuthRoute: typeof AuthRoute
   SettingsRoute: typeof SettingsRoute
+  ApiPublicBridgeIngestRoute: typeof ApiPublicBridgeIngestRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -135,6 +158,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedSignalsRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/api/public/bridge/ingest': {
+      id: '/api/public/bridge/ingest'
+      path: '/api/public/bridge/ingest'
+      fullPath: '/api/public/bridge/ingest'
+      preLoaderRoute: typeof ApiPublicBridgeIngestRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -156,6 +186,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AuthRoute: AuthRoute,
   SettingsRoute: SettingsRoute,
+  ApiPublicBridgeIngestRoute: ApiPublicBridgeIngestRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

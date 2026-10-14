@@ -11,3 +11,5 @@
 - Index arrays via `at()` from src/lib/market.ts; strict noUncheckedIndexedAccess stays on — why: catches out-of-range reads in indicator math.
 - Database tables are read-only for signed-in users; only server code with the service role writes (future MT5 bridge feed) — why: no client can forge prices, signals or connection status.
 - Pages that need sign-in live under src/routes/_authenticated/ (client-only gate redirecting to /auth); Dashboard and Settings stay public — why: one consistent gate, demo dashboard viewable without an account.
+- Real market data access is gated by public.has_active_subscription(); subscriptions/roles are granted only via SQL editor or service role — why: no self-service privilege escalation.
+- MT5 bridge writes only via /api/public/bridge/ingest with HMAC(ts.requestId.body) + replay log — why: server-held secret, no client writes.
