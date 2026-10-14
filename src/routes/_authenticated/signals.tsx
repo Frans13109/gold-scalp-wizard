@@ -34,7 +34,7 @@ export const Route = createFileRoute("/_authenticated/signals")({
   loader: ({ context }) => context.queryClient.ensureQueryData(historyQuery),
   errorComponent: ({ error }) => (
     <Panel title="Signal history">
-      <p className="text-sm text-bear">Could not load signal history: {error.message}</p>
+      <p className="text-sm text-bear">Could not load signal history: {error instanceof Error ? error.message : "unknown error"}</p>
     </Panel>
   ),
   component: History,
