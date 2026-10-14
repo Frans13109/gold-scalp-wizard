@@ -32,9 +32,9 @@ const payload = z.discriminatedUnion("type", [
 const json = (status: number, body: unknown) =>
   new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json", "cache-control": "no-store" } });
 
-function hexToBytes(hex: string): Uint8Array | null {
+function hexToBytes(hex: string): Uint8Array<ArrayBuffer> | null {
   if (!/^[0-9a-f]{64}$/i.test(hex)) return null;
-  const out = new Uint8Array(32);
+  const out = new Uint8Array(new ArrayBuffer(32));
   for (let i = 0; i < 32; i++) out[i] = parseInt(hex.slice(i * 2, i * 2 + 2), 16);
   return out;
 }
