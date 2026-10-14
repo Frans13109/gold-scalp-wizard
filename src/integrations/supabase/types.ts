@@ -14,7 +14,200 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      connection_health: {
+        Row: {
+          checked_at: string
+          error_message: string | null
+          id: number
+          last_market_data_at: string | null
+          latency_ms: number | null
+          status: Database["public"]["Enums"]["bridge_status"]
+          terminal_connected: boolean
+        }
+        Insert: {
+          checked_at?: string
+          error_message?: string | null
+          id?: never
+          last_market_data_at?: string | null
+          latency_ms?: number | null
+          status?: Database["public"]["Enums"]["bridge_status"]
+          terminal_connected?: boolean
+        }
+        Update: {
+          checked_at?: string
+          error_message?: string | null
+          id?: never
+          last_market_data_at?: string | null
+          latency_ms?: number | null
+          status?: Database["public"]["Enums"]["bridge_status"]
+          terminal_connected?: boolean
+        }
+        Relationships: []
+      }
+      market_candles: {
+        Row: {
+          close: number
+          high: number
+          id: number
+          low: number
+          open: number
+          open_time: string
+          received_at: string
+          source: Database["public"]["Enums"]["data_source"]
+          spread: number | null
+          symbol: string
+          tick_volume: number | null
+          timeframe: Database["public"]["Enums"]["timeframe"]
+        }
+        Insert: {
+          close: number
+          high: number
+          id?: never
+          low: number
+          open: number
+          open_time: string
+          received_at?: string
+          source: Database["public"]["Enums"]["data_source"]
+          spread?: number | null
+          symbol?: string
+          tick_volume?: number | null
+          timeframe: Database["public"]["Enums"]["timeframe"]
+        }
+        Update: {
+          close?: number
+          high?: number
+          id?: never
+          low?: number
+          open?: number
+          open_time?: string
+          received_at?: string
+          source?: Database["public"]["Enums"]["data_source"]
+          spread?: number | null
+          symbol?: string
+          tick_volume?: number | null
+          timeframe?: Database["public"]["Enums"]["timeframe"]
+        }
+        Relationships: []
+      }
+      signal_outcomes: {
+        Row: {
+          closed_at: string
+          created_at: string
+          exit_price: number | null
+          id: string
+          max_adverse: number | null
+          max_favorable: number | null
+          outcome: Database["public"]["Enums"]["signal_outcome"]
+          result_r: number | null
+          signal_id: string
+        }
+        Insert: {
+          closed_at?: string
+          created_at?: string
+          exit_price?: number | null
+          id?: string
+          max_adverse?: number | null
+          max_favorable?: number | null
+          outcome: Database["public"]["Enums"]["signal_outcome"]
+          result_r?: number | null
+          signal_id: string
+        }
+        Update: {
+          closed_at?: string
+          created_at?: string
+          exit_price?: number | null
+          id?: string
+          max_adverse?: number | null
+          max_favorable?: number | null
+          outcome?: Database["public"]["Enums"]["signal_outcome"]
+          result_r?: number | null
+          signal_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "signal_outcomes_signal_id_fkey"
+            columns: ["signal_id"]
+            isOneToOne: true
+            referencedRelation: "signals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      signals: {
+        Row: {
+          confluence_score: number
+          created_at: string
+          entry: number
+          entry_high: number | null
+          entry_low: number | null
+          expires_at: string
+          id: string
+          invalidated_at: string | null
+          invalidation_rule: string | null
+          is_demo: boolean
+          reasons: string[]
+          rr_tp1: number
+          rr_tp2: number | null
+          rr_worst: number | null
+          side: Database["public"]["Enums"]["signal_side"]
+          status: Database["public"]["Enums"]["signal_status"]
+          stop_loss: number
+          symbol: string
+          take_profit_1: number
+          take_profit_2: number | null
+          timeframe: Database["public"]["Enums"]["timeframe"]
+          updated_at: string
+        }
+        Insert: {
+          confluence_score: number
+          created_at?: string
+          entry: number
+          entry_high?: number | null
+          entry_low?: number | null
+          expires_at: string
+          id?: string
+          invalidated_at?: string | null
+          invalidation_rule?: string | null
+          is_demo?: boolean
+          reasons?: string[]
+          rr_tp1: number
+          rr_tp2?: number | null
+          rr_worst?: number | null
+          side: Database["public"]["Enums"]["signal_side"]
+          status?: Database["public"]["Enums"]["signal_status"]
+          stop_loss: number
+          symbol?: string
+          take_profit_1: number
+          take_profit_2?: number | null
+          timeframe?: Database["public"]["Enums"]["timeframe"]
+          updated_at?: string
+        }
+        Update: {
+          confluence_score?: number
+          created_at?: string
+          entry?: number
+          entry_high?: number | null
+          entry_low?: number | null
+          expires_at?: string
+          id?: string
+          invalidated_at?: string | null
+          invalidation_rule?: string | null
+          is_demo?: boolean
+          reasons?: string[]
+          rr_tp1?: number
+          rr_tp2?: number | null
+          rr_worst?: number | null
+          side?: Database["public"]["Enums"]["signal_side"]
+          status?: Database["public"]["Enums"]["signal_status"]
+          stop_loss?: number
+          symbol?: string
+          take_profit_1?: number
+          take_profit_2?: number | null
+          timeframe?: Database["public"]["Enums"]["timeframe"]
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -23,7 +216,12 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      [_ in never]: never
+      bridge_status: "NOT_CONNECTED" | "CONNECTING" | "CONNECTED" | "ERROR"
+      data_source: "mt5_bridge" | "demo"
+      signal_outcome: "tp1" | "tp2" | "sl" | "expired" | "invalidated"
+      signal_side: "BUY" | "SELL"
+      signal_status: "active" | "expired" | "invalidated" | "hit_tp" | "hit_sl"
+      timeframe: "M5" | "M15"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +348,13 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      bridge_status: ["NOT_CONNECTED", "CONNECTING", "CONNECTED", "ERROR"],
+      data_source: ["mt5_bridge", "demo"],
+      signal_outcome: ["tp1", "tp2", "sl", "expired", "invalidated"],
+      signal_side: ["BUY", "SELL"],
+      signal_status: ["active", "expired", "invalidated", "hit_tp", "hit_sl"],
+      timeframe: ["M5", "M15"],
+    },
   },
 } as const
