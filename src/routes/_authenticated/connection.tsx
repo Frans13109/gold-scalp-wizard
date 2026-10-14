@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { Panel } from "@/components/AppShell";
 import { bridgeEndpoints, getBridgeStatus } from "@/lib/mt5-bridge";
 
-export const Route = createFileRoute("/connection")({
+export const Route = createFileRoute("/_authenticated/connection")({
   head: () => ({
     meta: [
       { title: "MT5 Connection Status — GoldScalp AI" },
