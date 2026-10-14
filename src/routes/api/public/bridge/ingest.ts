@@ -78,7 +78,7 @@ export const Route = createFileRoute("/api/public/bridge/ingest")({
         if (replayErr) return json(409, { error: "replayed request" });
 
         if (body.type === "candles") {
-          const rows = body.candles.map((c) => ({ ...c, symbol: "XAUUSD", source: "mt5_bridge" as const }));
+          const rows = body.candles.map((c) => ({ ...c, tick_volume: c.tick_volume ?? null, spread: c.spread ?? null, symbol: "XAUUSD", source: "mt5_bridge" as const }));
           const { error } = await supabaseAdmin.from("market_candles").upsert(rows, { onConflict: "symbol,timeframe,open_time" });
           if (error) { console.error("[bridge] candles", error.message); return json(500, { error: "store failed" }); }
           return json(200, { ok: true, stored: rows.length });
