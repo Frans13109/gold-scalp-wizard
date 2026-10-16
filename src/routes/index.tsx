@@ -1,8 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Panel, DemoTag, LiveTag } from "@/components/AppShell";
 import { CandleChart } from "@/components/CandleChart";
-import { SignalCard } from "@/components/SignalCard";
+import { EnginePanel } from "@/components/EnginePanel";
+import { evaluateSignal } from "@/lib/signal-engine";
 import { useDemoMarket } from "@/lib/use-demo";
 import { useLiveCandles } from "@/lib/use-live-candles";
 import { useLiveTick } from "@/lib/use-live-tick";
@@ -26,7 +27,7 @@ export const Route = createFileRoute("/")({
 });
 
 function Dashboard() {
-  const { m5, m15, signals, trend, strategy } = useDemoMarket();
+  const { m5, m15, trend, strategy } = useDemoMarket();
   const [tf, setTf] = useState<Timeframe>("M5");
   const live = useLiveCandles();
   const priceLive = live.M5.state === "LIVE";
@@ -34,9 +35,13 @@ function Dashboard() {
   const tick = useLiveTick();
   const formingRaw = useFormingCandle(tick);
   const series = (t: Timeframe) => (live[t].state === "LIVE" ? live[t].candles : t === "M5" ? m5 : m15);
-  const lastBuy = signals.find((s) => s.side === "BUY");
-  const lastSell = signals.find((s) => s.side === "SELL");
   const spreadOk = strategy.demoSpread <= strategy.maxSpread;
+  // Engine uses real data only; never demo candles. Re-evaluates as the live tick updates.
+  const now = Date.now();
+  const engineTick = tick.state === "LIVE" && tick.bid != null && tick.ask != null && tick.tickTime ? { bid: tick.bid, ask: tick.ask, tickTime: tick.tickTime } : null;
+  const engine = useMemo(() => evaluateSignal(live.M5.candles, live.M15.candles, engineTick, now),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [live.M5.candles, live.M15.candles, engineTick?.bid, engineTick?.ask, engineTick?.tickTime, Math.floor(now / 1000)]);
 
   return (
     <div className="space-y-4">
@@ -54,31 +59,11 @@ function Dashboard() {
         <div className="mt-4 grid grid-cols-3 gap-3">
           <Stat k="M15 trend (simulated)" v={trend} cls={trend === "UP" ? "text-bull" : trend === "DOWN" ? "text-bear" : "text-muted-foreground"} />
           <Stat k="Spread" v={strategy.demoSpread.toFixed(2)} cls={spreadOk ? "text-bull" : "text-bear"} />
-          <Stat k="Simulated signals" v={String(signals.length)} />
+          <Stat k="Engine M15 bias" v={engine.bias} cls={engine.bias === "BULLISH" ? "text-bull" : engine.bias === "BEARISH" ? "text-bear" : "text-muted-foreground"} />
         </div>
       </section>
 
-      <section className="space-y-3 rounded-xl border-2 border-dashed border-warn/60 p-3" aria-label="Simulated signals">
-        <div className="space-y-1">
-          <h2 className="text-lg font-bold text-warn">Live BUY/SELL signals are not available yet</h2>
-          <p className="text-sm text-muted-foreground">
-            The cards below are SIMULATED examples built from synthetic demo candles. Their prices do not match the real market and must not be traded.
-          </p>
-        </div>
-        <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-secondary p-3" data-testid="live-price-beside-signals">
-          <span className="text-sm font-semibold">
-            {tick.state === "LIVE" ? "Real XAUUSD bid (live tick)" : priceLive ? "Real XAUUSD price (last closed M5)" : "XAUUSD price (simulated — no live data)"}
-          </span>
-          <span className="flex items-center gap-2">
-            <span className="num text-xl font-bold">{(tick.state === "LIVE" && tick.price != null ? tick.price : last.c).toFixed(2)}</span>
-            {tick.state === "LIVE" || priceLive ? <LiveTag /> : <DemoTag />}
-          </span>
-        </div>
-        <div className="grid gap-4 md:grid-cols-2">
-          <SignalCard side="BUY" signal={lastBuy} />
-          <SignalCard side="SELL" signal={lastSell} />
-        </div>
-      </section>
+      <EnginePanel result={engine} now={now} />
 
       <div className="grid grid-cols-2 gap-2 rounded-xl bg-secondary p-1" role="tablist">
         {(["M5", "M15"] as const).map((t) => (

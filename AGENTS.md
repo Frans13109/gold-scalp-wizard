@@ -15,3 +15,4 @@
 - MT5 bridge writes only via /api/public/bridge/ingest with HMAC(ts.requestId.body) + replay log — why: server-held secret, no client writes.
 - Dashboard prices/charts use real market_candles only when evaluateCandles() in src/lib/live-candles.ts reports LIVE (browser client, RLS-gated); otherwise demo — why: never show stale or missing data as live.
 - Live ticks go only to market_ticks_latest (one row per symbol, bid = displayed price), via the signed ingest endpoint with a per-symbol rate limit; never written into market_candles — why: closed-candle history and indicators stay untouched by tick data.
+- Signal engine rules live only in src/lib/signal-engine.ts (pure, used by dashboard and server); the server stores signals after M5 uploads via src/lib/signal-store.server.ts with is_demo=true and a unique (symbol,side,timeframe,source_candle_time,strategy_version) key — why: one rule set, no duplicates, no client writes.
