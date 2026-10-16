@@ -1,9 +1,10 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
-import { Panel, DemoTag } from "@/components/AppShell";
+import { Panel, DemoTag, LiveTag } from "@/components/AppShell";
 import { CandleChart } from "@/components/CandleChart";
 import { SignalCard } from "@/components/SignalCard";
 import { useDemoMarket } from "@/lib/use-demo";
+import { useLiveCandles } from "@/lib/use-live-candles";
 import { at, indicators, type Candle, type Timeframe } from "@/lib/market";
 
 export const Route = createFileRoute("/")({
@@ -21,7 +22,10 @@ export const Route = createFileRoute("/")({
 function Dashboard() {
   const { m5, m15, signals, trend, strategy } = useDemoMarket();
   const [tf, setTf] = useState<Timeframe>("M5");
-  const last = at(m5, -1);
+  const live = useLiveCandles();
+  const priceLive = live.M5.state === "LIVE";
+  const last = at(priceLive ? live.M5.candles : m5, -1);
+  const series = (t: Timeframe) => (live[t].state === "LIVE" ? live[t].candles : t === "M5" ? m5 : m15);
   const lastBuy = signals.find((s) => s.side === "BUY");
   const lastSell = signals.find((s) => s.side === "SELL");
   const spreadOk = strategy.demoSpread <= strategy.maxSpread;
@@ -29,9 +33,11 @@ function Dashboard() {
   return (
     <div className="space-y-4">
       <section className="panel p-4">
-        <div className="flex items-center gap-2 text-base text-muted-foreground">XAUUSD · Gold <DemoTag /></div>
+        <div className="flex items-center gap-2 text-base text-muted-foreground">XAUUSD · Gold {priceLive ? <LiveTag /> : <DemoTag />}</div>
         <div className="num mt-1 text-4xl font-bold">{last.c.toFixed(2)}</div>
-        <p className="text-sm text-muted-foreground">Simulated price — not a live quote.</p>
+        <p className="text-sm text-muted-foreground">
+          {priceLive ? `Last closed M5 candle from MT5 · ${new Date(last.t).toUTCString().slice(17, 22)} UTC open` : live.M5.state === "STALE" ? "Real candles are out of date — showing simulated price." : "Simulated price — not a live quote."}
+        </p>
         <div className="mt-4 grid grid-cols-3 gap-3">
           <Stat k="M15 trend" v={trend} cls={trend === "UP" ? "text-bull" : trend === "DOWN" ? "text-bear" : "text-muted-foreground"} />
           <Stat k="Spread" v={strategy.demoSpread.toFixed(2)} cls={spreadOk ? "text-bull" : "text-bear"} />
@@ -52,12 +58,12 @@ function Dashboard() {
           </button>
         ))}
       </div>
-      <TimeframeView key={tf} tf={tf} candles={tf === "M5" ? m5 : m15} />
+      <TimeframeView key={tf} tf={tf} candles={series(tf)} live={live[tf].state === "LIVE"} />
     </div>
   );
 }
 
-function TimeframeView({ tf, candles }: { tf: Timeframe; candles: Candle[] }) {
+function TimeframeView({ tf, candles, live }: { tf: Timeframe; candles: Candle[]; live: boolean }) {
   const ind = indicators(candles);
   const close = at(candles, -1).c;
   const r = at(ind.rsi, -1), h = at(ind.macd.hist, -1), a = at(ind.atr, -1);
@@ -65,10 +71,10 @@ function TimeframeView({ tf, candles }: { tf: Timeframe; candles: Candle[] }) {
   const vol = atrPct > 0.08 ? "HIGH" : atrPct > 0.04 ? "NORMAL" : "LOW";
   return (
     <div className="space-y-4">
-      <Panel title={`XAUUSD ${tf} chart`} right={<DemoTag />}>
-        <CandleChart candles={candles} />
+      <Panel title={`XAUUSD ${tf} chart`} right={live ? <LiveTag /> : <DemoTag />}>
+        <CandleChart candles={candles} live={live} />
       </Panel>
-      <Panel title={`${tf} indicators`} right={<DemoTag />}>
+      <Panel title={`${tf} indicators`} right={live ? <LiveTag /> : <DemoTag />}>
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
           <Stat k="EMA 9" v={at(ind.ema9, -1).toFixed(2)} />
           <Stat k="EMA 21" v={at(ind.ema21, -1).toFixed(2)} />

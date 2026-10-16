@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useUser } from "@/lib/use-session";
 import { useBridgeStatus, statusLabel } from "@/lib/use-bridge-status";
+import { useLiveCandles } from "@/lib/use-live-candles";
 
 function StatusPill() {
   const { status } = useBridgeStatus();
@@ -42,11 +43,19 @@ const nav = [
 ] as const;
 
 export function AppShell({ children }: { children: ReactNode }) {
+  const live = useLiveCandles();
+  const anyLive = live.M5.state === "LIVE" || live.M15.state === "LIVE";
   return (
     <div className="min-h-screen pb-20 md:pb-0">
-      <div className="demo-stripes px-3 py-2 text-center text-sm font-bold tracking-wide">
-        DEMO MODE — synthetic data only. Not live prices. Signals only, no trading.
-      </div>
+      {anyLive ? (
+        <div className="border-b border-bull/40 px-3 py-2 text-center text-sm font-bold tracking-wide text-bull">
+          LIVE MT5 PRICES — signal cards are still DEMO. Signals only, no trading.
+        </div>
+      ) : (
+        <div className="demo-stripes px-3 py-2 text-center text-sm font-bold tracking-wide">
+          DEMO MODE — synthetic data only. Not live prices. Signals only, no trading.
+        </div>
+      )}
       <header className="sticky top-0 z-20 border-b bg-surface/90 backdrop-blur">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-3">
           <Link to="/" className="flex min-w-0 items-center gap-2">
@@ -88,6 +97,10 @@ export function Panel({ title, children, right }: { title: string; children: Rea
       {children}
     </section>
   );
+}
+
+export function LiveTag() {
+  return <span className="rounded border border-bull/50 px-2 py-0.5 text-xs font-bold text-bull">LIVE MT5</span>;
 }
 
 export function DemoTag() {

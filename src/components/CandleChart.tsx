@@ -1,7 +1,7 @@
 import type { Candle } from "@/lib/market";
 import { ema } from "@/lib/market";
 
-export function CandleChart({ candles, count = 80 }: { candles: Candle[]; count?: number }) {
+export function CandleChart({ candles, count = 80, live = false }: { candles: Candle[]; count?: number; live?: boolean }) {
   const close = candles.map((c) => c.c);
   const lines = [{ v: ema(close, 9), cls: "stroke-gold" }, { v: ema(close, 21), cls: "stroke-bull" }, { v: ema(close, 50), cls: "stroke-bear" }];
   const start = Math.max(0, candles.length - count);
@@ -27,7 +27,7 @@ export function CandleChart({ candles, count = 80 }: { candles: Candle[]; count?
           <polyline key={k} fill="none" strokeWidth={1.5} className={l.cls} points={l.v.slice(start).map((p, i) => `${i * step + step / 2},${y(p)}`).join(" ")} />
         ))}
       </svg>
-      <div className="pointer-events-none absolute inset-0 grid place-items-center text-4xl font-bold text-foreground/5 sm:text-6xl">DEMO DATA</div>
+      <div className="pointer-events-none absolute inset-0 grid place-items-center text-4xl font-bold text-foreground/5 sm:text-6xl">{live ? "LIVE MT5" : "DEMO DATA"}</div>
       <div className="mt-2 flex gap-4 text-xs text-muted-foreground">
         <span className="text-gold">— EMA 9</span><span className="text-bull">— EMA 21</span><span className="text-bear">— EMA 50</span>
       </div>
