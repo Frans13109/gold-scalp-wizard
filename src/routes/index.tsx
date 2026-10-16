@@ -14,6 +14,8 @@ export const Route = createFileRoute("/")({
       { name: "description", content: "M15 trend + M5 entry signal dashboard for Gold (XAUUSD) scalping. Demo data, signals only." },
       { property: "og:title", content: "GoldScalp AI — XAUUSD Dashboard" },
       { property: "og:description", content: "Gold scalping signal dashboard with EMA, RSI, MACD and ATR. Demo mode." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
     ],
   }),
   component: Dashboard,
@@ -41,7 +43,7 @@ function Dashboard() {
             : live.M5.state === "STALE" ? "Real candles are out of date — showing simulated price." : "Simulated price — not a live quote."}
         </p>
         <div className="mt-4 grid grid-cols-3 gap-3">
-          <Stat k="M15 trend" v={trend} cls={trend === "UP" ? "text-bull" : trend === "DOWN" ? "text-bear" : "text-muted-foreground"} />
+          <Stat k="M15 trend (simulated)" v={trend} cls={trend === "UP" ? "text-bull" : trend === "DOWN" ? "text-bear" : "text-muted-foreground"} />
           <Stat k="Spread" v={strategy.demoSpread.toFixed(2)} cls={spreadOk ? "text-bull" : "text-bear"} />
           <Stat k="Simulated signals" v={String(signals.length)} />
         </div>
