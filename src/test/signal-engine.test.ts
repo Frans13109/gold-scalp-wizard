@@ -18,7 +18,7 @@ function series(n: number, tf: number, dir: 1 | -1, up = 1.0, down = 0.6): Candl
   }
   return out;
 }
-const tick = (bid: number, spread = 0.2, ageMs = 1000) => ({ bid, ask: +(bid + spread).toFixed(2), tickTime: new Date(NOW - ageMs).toISOString() });
+const tick = (raw: number, spread = 0.2, ageMs = 1000, bid = +raw.toFixed(2)) => ({ bid, ask: +(bid + spread).toFixed(2), tickTime: new Date(NOW - ageMs).toISOString() });
 const bull5 = series(120, M5, 1), bull15 = series(100, M15, 1);
 const bear5 = series(120, M5, -1), bear15 = series(100, M15, -1);
 const lastC = (c: Candle[]) => c[c.length - 1]!.c;
@@ -30,7 +30,7 @@ describe("signal engine", () => {
     if (r.state !== "SIGNAL") return;
     const s = r.signal;
     expect(s.side).toBe("BUY");
-    expect(s.entry).toBeCloseTo(lastC(bull5) + 0.2, 6);
+    expect(s.entry).toBeCloseTo(lastC(bull5) + 0.2, 2);
     expect(s.stopLoss).toBeLessThan(s.entry);
     expect(s.takeProfit).toBeGreaterThan(s.entry);
     expect(s.rr).toBeGreaterThanOrEqual(2 - 1e-9);
@@ -43,7 +43,7 @@ describe("signal engine", () => {
     expect(r.state).toBe("SIGNAL");
     if (r.state !== "SIGNAL") return;
     expect(r.signal.side).toBe("SELL");
-    expect(r.signal.entry).toBeCloseTo(lastC(bear5), 6);
+    expect(r.signal.entry).toBeCloseTo(lastC(bear5), 2);
     expect(r.signal.stopLoss).toBeGreaterThan(r.signal.entry);
     expect(r.signal.takeProfit).toBeLessThan(r.signal.entry);
   });

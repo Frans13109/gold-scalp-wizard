@@ -55,13 +55,13 @@ export function completed(c: Candle[], tfMs: number, now: number): Candle[] {
   return [...c].sort((a, b) => a.t - b.t).filter((x) => x.t + tfMs <= now);
 }
 
-/** Price precision inferred from the live quote (e.g. 2 or 3 digits), minimum 2. */
+/** Price precision inferred from the live quote: 2 or 3 digits (XAUUSD / XAUUSDm). */
 export function priceDigits(...prices: number[]): number {
   let d = 2;
   for (const p of prices) {
     const s = String(p);
     const i = s.indexOf(".");
-    if (i >= 0) d = Math.max(d, Math.min(5, s.length - i - 1));
+    if (i >= 0) d = Math.max(d, Math.min(3, s.length - i - 1));
   }
   return d;
 }
