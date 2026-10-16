@@ -1,29 +1,39 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { Panel } from "@/components/AppShell";
-import { bridgeEndpoints, getBridgeStatus } from "@/lib/mt5-bridge";
+import { bridgeEndpoints } from "@/lib/mt5-bridge";
+import { useBridgeStatus, statusLabel } from "@/lib/use-bridge-status";
 
 export const Route = createFileRoute("/_authenticated/connection")({
   head: () => ({
     meta: [
       { title: "MT5 Connection Status — GoldScalp AI" },
-      { name: "description", content: "Status of the future read-only MetaTrader 5 Python bridge." },
+      { name: "description", content: "Live status of the read-only MetaTrader 5 Python bridge." },
       { property: "og:title", content: "MT5 Connection — GoldScalp AI" },
-      { property: "og:description", content: "Read-only MT5 bridge status. Currently not connected." },
+      { property: "og:description", content: "Read-only MT5 bridge connection status." },
     ],
   }),
   component: Connection,
 });
 
 function Connection() {
-  const status = getBridgeStatus();
+  const { status, lastReportAt } = useBridgeStatus();
+  const [dot, txt] = status === "CONNECTED" ? ["bg-bull", "text-bull"] : status === "ERROR" ? ["bg-warn", "text-warn"] : ["bg-bear", "text-bear"];
+  const msg =
+    status === "CONNECTED" ? "The bridge sent a healthy report within the last 2 minutes."
+    : status === "ERROR" ? "The bridge reported a problem with the MT5 terminal."
+    : lastReportAt ? "No healthy report in the last 2 minutes." : "No health report has been received yet.";
   return (
     <div className="space-y-4">
       <Panel title="MT5 connection status">
         <div className="flex items-center gap-3">
-          <span className="h-3 w-3 shrink-0 rounded-full bg-bear" />
-          <span className="text-2xl font-bold text-bear">{status.replace("_", " ")}</span>
+          <span className={`h-3 w-3 shrink-0 rounded-full ${dot}`} />
+          <span className={`text-2xl font-bold ${txt}`}>{statusLabel(status)}</span>
         </div>
-        <p className="mt-2 text-sm text-muted-foreground">No MetaTrader 5 bridge has been configured or verified. All prices and signals in this app are demo data.</p>
+        <p className="mt-2 text-sm text-muted-foreground">{msg}</p>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Last report: {lastReportAt ? new Date(lastReportAt).toLocaleString() : "none"} · refreshes every 30 s
+        </p>
+        <p className="mt-1 text-sm text-muted-foreground">Dashboard prices and signals are still DEMO DATA.</p>
       </Panel>
       <Panel title="Planned read-only bridge interface">
         <p className="mb-3 text-sm text-muted-foreground">A future Python service on Windows will read XAUUSD data from your locally logged-in Exness MT5 terminal and expose these endpoints. It will be market-data only.</p>

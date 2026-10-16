@@ -3,6 +3,13 @@ import { useQueryClient } from "@tanstack/react-query";
 import type { ReactNode } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useUser } from "@/lib/use-session";
+import { useBridgeStatus, statusLabel } from "@/lib/use-bridge-status";
+
+function StatusPill() {
+  const { status } = useBridgeStatus();
+  const cls = status === "CONNECTED" ? "border-bull/40 text-bull" : status === "ERROR" ? "border-warn/60 text-warn" : "border-bear/40 text-bear";
+  return <span className={`rounded-full border px-3 py-1.5 text-xs font-bold sm:text-sm ${cls}`}>MT5 STATUS: {statusLabel(status)}</span>;
+}
 
 function AccountButton() {
   const user = useUser();
@@ -54,7 +61,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             ))}
           </nav>
           <div className="flex shrink-0 items-center gap-2">
-            <span className="rounded-full border border-bear/40 px-3 py-1.5 text-xs font-bold text-bear sm:text-sm">MT5 STATUS: NOT CONNECTED</span>
+            <StatusPill />
             <AccountButton />
           </div>
         </div>
