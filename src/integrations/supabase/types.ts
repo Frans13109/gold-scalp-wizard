@@ -104,6 +104,33 @@ export type Database = {
         }
         Relationships: []
       }
+      market_ticks_latest: {
+        Row: {
+          ask: number
+          bid: number
+          price: number
+          received_at: string
+          symbol: string
+          tick_time: string
+        }
+        Insert: {
+          ask: number
+          bid: number
+          price: number
+          received_at?: string
+          symbol: string
+          tick_time: string
+        }
+        Update: {
+          ask?: number
+          bid?: number
+          price?: number
+          received_at?: string
+          symbol?: string
+          tick_time?: string
+        }
+        Relationships: []
+      }
       signal_outcomes: {
         Row: {
           closed_at: string

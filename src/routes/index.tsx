@@ -5,6 +5,8 @@ import { CandleChart } from "@/components/CandleChart";
 import { SignalCard } from "@/components/SignalCard";
 import { useDemoMarket } from "@/lib/use-demo";
 import { useLiveCandles } from "@/lib/use-live-candles";
+import { useLiveTick } from "@/lib/use-live-tick";
+import type { LiveTick } from "@/lib/live-tick";
 import { at, indicators, type Candle, type Timeframe } from "@/lib/market";
 
 export const Route = createFileRoute("/")({
@@ -27,6 +29,7 @@ function Dashboard() {
   const live = useLiveCandles();
   const priceLive = live.M5.state === "LIVE";
   const last = at(priceLive ? live.M5.candles : m5, -1);
+  const tick = useLiveTick();
   const series = (t: Timeframe) => (live[t].state === "LIVE" ? live[t].candles : t === "M5" ? m5 : m15);
   const lastBuy = signals.find((s) => s.side === "BUY");
   const lastSell = signals.find((s) => s.side === "SELL");
@@ -35,8 +38,11 @@ function Dashboard() {
   return (
     <div className="space-y-4">
       <section className="panel p-4">
-        <div className="flex items-center gap-2 text-base text-muted-foreground">XAUUSD · Gold {priceLive ? <LiveTag /> : <DemoTag />}</div>
-        <div className="num mt-1 text-4xl font-bold">{last.c.toFixed(2)}</div>
+        {tick.state !== "MISSING" && <TickPrice tick={tick} />}
+        <div className={`flex items-center gap-2 text-base text-muted-foreground ${tick.state !== "MISSING" ? "mt-4 border-t pt-3" : ""}`}>
+          {tick.state !== "MISSING" ? "Last closed M5 candle" : "XAUUSD · Gold"} {priceLive ? <LiveTag /> : <DemoTag />}
+        </div>
+        <div className={`num mt-1 font-bold ${tick.state !== "MISSING" ? "text-2xl" : "text-4xl"}`}>{last.c.toFixed(2)}</div>
         <p className="text-sm text-muted-foreground">
           {priceLive
             ? `Close of the M5 candle ${new Date(last.t).toUTCString().slice(17, 22)}–${new Date(last.t + 5 * 60_000).toUTCString().slice(17, 22)} UTC · updates once every 5 minutes when the next candle closes`
@@ -58,11 +64,11 @@ function Dashboard() {
         </div>
         <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-secondary p-3" data-testid="live-price-beside-signals">
           <span className="text-sm font-semibold">
-            {priceLive ? "Real XAUUSD price (last closed M5)" : "XAUUSD price (simulated — no live data)"}
+            {tick.state === "LIVE" ? "Real XAUUSD bid (live tick)" : priceLive ? "Real XAUUSD price (last closed M5)" : "XAUUSD price (simulated — no live data)"}
           </span>
           <span className="flex items-center gap-2">
-            <span className="num text-xl font-bold">{last.c.toFixed(2)}</span>
-            {priceLive ? <LiveTag /> : <DemoTag />}
+            <span className="num text-xl font-bold">{(tick.state === "LIVE" && tick.price != null ? tick.price : last.c).toFixed(2)}</span>
+            {tick.state === "LIVE" || priceLive ? <LiveTag /> : <DemoTag />}
           </span>
         </div>
         <div className="grid gap-4 md:grid-cols-2">
@@ -114,6 +120,28 @@ function Stat({ k, v, cls = "" }: { k: string; v: string; cls?: string }) {
     <div className="min-w-0">
       <div className="text-sm text-muted-foreground">{k}</div>
       <div className={`num truncate text-lg font-semibold ${cls}`}>{v}</div>
+    </div>
+  );
+}
+
+function TickPrice({ tick }: { tick: LiveTick }) {
+  const live = tick.state === "LIVE";
+  const badge = live
+    ? <span className="rounded border border-bull/50 px-2 py-0.5 text-xs font-bold text-bull">LIVE TICK</span>
+    : <span className="rounded border border-bear px-2 py-0.5 text-xs font-bold text-bear">{tick.state === "STALE" ? "STALE" : "CONNECTION LOST"}</span>;
+  const secs = tick.ageMs == null ? "" : `${Math.round(tick.ageMs / 1000)}s ago`;
+  return (
+    <div data-testid="live-tick" data-state={tick.state}>
+      <div className="flex items-center gap-2 text-base text-muted-foreground">XAUUSD · Gold · Bid {badge}</div>
+      <div className={`num mt-1 text-5xl font-bold ${live ? "" : "text-muted-foreground line-through decoration-2"}`}>{tick.price?.toFixed(2)}</div>
+      <p className="num text-sm text-muted-foreground">
+        Bid {tick.bid?.toFixed(2)} · Ask {tick.ask?.toFixed(2)} · Spread {tick.bid != null && tick.ask != null ? (tick.ask - tick.bid).toFixed(2) : "—"}
+      </p>
+      <p className={`text-sm ${live ? "text-muted-foreground" : "font-semibold text-bear"}`}>
+        Last tick {tick.tickTime ? new Date(tick.tickTime).toISOString().slice(11, 19) : "—"} UTC ({secs})
+        {tick.state === "STALE" && " — no new ticks; price is NOT live (market may be quiet or closed)."}
+        {tick.state === "CONNECTION_LOST" && " — MT5 bridge feed lost; this price is NOT live."}
+      </p>
     </div>
   );
 }
