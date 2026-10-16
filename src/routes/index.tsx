@@ -7,6 +7,8 @@ import { useDemoMarket } from "@/lib/use-demo";
 import { useLiveCandles } from "@/lib/use-live-candles";
 import { useLiveTick } from "@/lib/use-live-tick";
 import type { LiveTick } from "@/lib/live-tick";
+import { useFormingCandle } from "@/lib/use-forming-candle";
+import { formingToShow, type FormingCandle } from "@/lib/forming-candle";
 import { at, indicators, type Candle, type Timeframe } from "@/lib/market";
 
 export const Route = createFileRoute("/")({
@@ -30,6 +32,7 @@ function Dashboard() {
   const priceLive = live.M5.state === "LIVE";
   const last = at(priceLive ? live.M5.candles : m5, -1);
   const tick = useLiveTick();
+  const formingRaw = useFormingCandle(tick);
   const series = (t: Timeframe) => (live[t].state === "LIVE" ? live[t].candles : t === "M5" ? m5 : m15);
   const lastBuy = signals.find((s) => s.side === "BUY");
   const lastSell = signals.find((s) => s.side === "SELL");
@@ -85,12 +88,14 @@ function Dashboard() {
           </button>
         ))}
       </div>
-      <TimeframeView key={tf} tf={tf} candles={series(tf)} live={live[tf].state === "LIVE"} />
+      <TimeframeView key={tf} tf={tf} candles={series(tf)} live={live[tf].state === "LIVE"}
+        forming={tf === "M5" && live.M5.state === "LIVE" ? formingToShow(live.M5.candles, formingRaw, tick.state === "LIVE") : null}
+        tickState={tf === "M5" && live.M5.state === "LIVE" ? tick.state : null} />
     </div>
   );
 }
 
-function TimeframeView({ tf, candles, live }: { tf: Timeframe; candles: Candle[]; live: boolean }) {
+function TimeframeView({ tf, candles, live, forming, tickState }: { tf: Timeframe; candles: Candle[]; live: boolean; forming: FormingCandle | null; tickState: LiveTick["state"] | null }) {
   const ind = indicators(candles);
   const close = at(candles, -1).c;
   const r = at(ind.rsi, -1), h = at(ind.macd.hist, -1), a = at(ind.atr, -1);
@@ -99,7 +104,13 @@ function TimeframeView({ tf, candles, live }: { tf: Timeframe; candles: Candle[]
   return (
     <div className="space-y-4">
       <Panel title={`XAUUSD ${tf} chart`} right={live ? <LiveTag /> : <DemoTag />}>
-        <CandleChart candles={candles} live={live} />
+        <CandleChart candles={candles} live={live} forming={forming} />
+        {forming?.partial && <p className="mt-1 text-xs text-muted-foreground">Forming candle open is the first tick seen since this page opened; MT5's closed candle will replace it.</p>}
+        {tickState && tickState !== "LIVE" && (
+          <p className="mt-2 text-sm font-semibold text-bear">
+            {tickState === "MISSING" ? "No live ticks received — chart shows closed candles only." : tickState === "STALE" ? "Live ticks have stopped — forming candle hidden; showing closed candles only." : "Live tick feed lost — forming candle hidden; showing closed candles only."}
+          </p>
+        )}
       </Panel>
       <Panel title={`${tf} indicators`} right={live ? <LiveTag /> : <DemoTag />}>
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
