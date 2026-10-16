@@ -22,7 +22,8 @@ async function load(tf: Timeframe): Promise<LiveSeries> {
 export function useLiveCandles() {
   const user = useUser();
   const enabled = !!user;
-  const opts = { enabled, refetchInterval: 30_000, staleTime: 25_000 } as const;
+  // Keep polling even when the tab is in the background, and refetch immediately on focus/reconnect.
+  const opts = { enabled, refetchInterval: 30_000, refetchIntervalInBackground: true, refetchOnWindowFocus: "always", refetchOnReconnect: "always", staleTime: 0 } as const;
   const m5 = useQuery({ queryKey: ["live-candles", user?.id, "M5"], queryFn: () => load("M5"), ...opts });
   const m15 = useQuery({ queryKey: ["live-candles", user?.id, "M15"], queryFn: () => load("M15"), ...opts });
   return { M5: enabled ? m5.data ?? empty : empty, M15: enabled ? m15.data ?? empty : empty };
