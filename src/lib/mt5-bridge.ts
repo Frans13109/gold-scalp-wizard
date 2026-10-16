@@ -24,7 +24,23 @@ export const bridgeEndpoints = [
   { method: "GET", path: "/candles?symbol=XAUUSD&tf=M5|M15&count=N", desc: "OHLC history" },
 ];
 
-/** Status stays NOT_CONNECTED until a real verified health check exists. */
-export function getBridgeStatus(): BridgeStatus {
-  return "NOT_CONNECTED";
+/** A health report older than this is treated as NOT_CONNECTED. */
+export const HEALTH_MAX_AGE_MS = 120_000;
+
+export interface HealthRow {
+  status: BridgeStatus;
+  terminal_connected: boolean;
+  checked_at: string;
+}
+
+/**
+ * Derives the displayed status from the latest server-validated health report.
+ * CONNECTED only if healthy AND received within HEALTH_MAX_AGE_MS; missing/stale -> NOT_CONNECTED.
+ */
+export function getBridgeStatus(row: HealthRow | null | undefined, now: number = Date.now()): BridgeStatus {
+  if (!row) return "NOT_CONNECTED";
+  const t = Date.parse(row.checked_at);
+  if (!Number.isFinite(t) || now - t > HEALTH_MAX_AGE_MS || t - now > HEALTH_MAX_AGE_MS) return "NOT_CONNECTED";
+  if (row.status === "ERROR" || !row.terminal_connected) return "ERROR";
+  return row.status === "CONNECTED" ? "CONNECTED" : "NOT_CONNECTED";
 }

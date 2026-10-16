@@ -34,7 +34,24 @@ describe("signal math (demo data)", () => {
     expect(scan(m5, toM15(m5), { ...defaultStrategy, demoSpread: 1, maxSpread: 0.3 })).toHaveLength(0);
   });
 
-  it("MT5 bridge reports NOT_CONNECTED", () => {
-    expect(getBridgeStatus()).toBe("NOT_CONNECTED");
+});
+
+describe("MT5 bridge status", () => {
+  const now = Date.parse("2026-10-16T12:00:00Z");
+  const ago = (s: number) => new Date(now - s * 1000).toISOString();
+  it("missing report -> NOT_CONNECTED", () => {
+    expect(getBridgeStatus(null, now)).toBe("NOT_CONNECTED");
+  });
+  it("fresh healthy report -> CONNECTED", () => {
+    expect(getBridgeStatus({ status: "CONNECTED", terminal_connected: true, checked_at: ago(30) }, now)).toBe("CONNECTED");
+  });
+  it("stale healthy report -> NOT_CONNECTED", () => {
+    expect(getBridgeStatus({ status: "CONNECTED", terminal_connected: true, checked_at: ago(121) }, now)).toBe("NOT_CONNECTED");
+  });
+  it("fresh error report -> ERROR", () => {
+    expect(getBridgeStatus({ status: "ERROR", terminal_connected: false, checked_at: ago(10) }, now)).toBe("ERROR");
+  });
+  it("stale error report -> NOT_CONNECTED", () => {
+    expect(getBridgeStatus({ status: "ERROR", terminal_connected: false, checked_at: ago(600) }, now)).toBe("NOT_CONNECTED");
   });
 });
