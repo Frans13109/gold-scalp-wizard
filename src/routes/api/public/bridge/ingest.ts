@@ -26,7 +26,7 @@ const payload = z.discriminatedUnion("type", [
     type: z.literal("tick"), symbol: z.literal("XAUUSD"),
     bid: num.positive(), ask: num.positive(),
     tick_time: z.string().datetime({ offset: true }),
-  }).refine((t) => t.ask >= t.bid && t.ask - t.bid < 50, "invalid bid/ask"),
+  }),
   z.object({
     type: z.literal("health"),
     terminal_connected: z.boolean(),
@@ -82,6 +82,7 @@ export const Route = createFileRoute("/api/public/bridge/ingest")({
 
         let prevTick: { tick_time: string; received_at: string } | null = null;
         if (body.type === "tick") {
+          if (body.ask < body.bid || body.ask - body.bid >= 50) return json(400, { error: "invalid payload" });
           const tt = Date.parse(body.tick_time);
           if (Math.abs(Date.now() - tt) > MAX_TICK_AGE_MS) return json(422, { error: "stale tick" });
           const { data } = await supabaseAdmin.from("market_ticks_latest").select("tick_time, received_at").eq("symbol", "XAUUSD").maybeSingle();
