@@ -36,7 +36,9 @@ function Dashboard() {
         <div className="flex items-center gap-2 text-base text-muted-foreground">XAUUSD · Gold {priceLive ? <LiveTag /> : <DemoTag />}</div>
         <div className="num mt-1 text-4xl font-bold">{last.c.toFixed(2)}</div>
         <p className="text-sm text-muted-foreground">
-          {priceLive ? `Last closed M5 candle from MT5 · ${new Date(last.t).toUTCString().slice(17, 22)} UTC open` : live.M5.state === "STALE" ? "Real candles are out of date — showing simulated price." : "Simulated price — not a live quote."}
+          {priceLive
+            ? `Close of the M5 candle ${new Date(last.t).toUTCString().slice(17, 22)}–${new Date(last.t + 5 * 60_000).toUTCString().slice(17, 22)} UTC · updates once every 5 minutes when the next candle closes`
+            : live.M5.state === "STALE" ? "Real candles are out of date — showing simulated price." : "Simulated price — not a live quote."}
         </p>
         <div className="mt-4 grid grid-cols-3 gap-3">
           <Stat k="M15 trend" v={trend} cls={trend === "UP" ? "text-bull" : trend === "DOWN" ? "text-bear" : "text-muted-foreground"} />
