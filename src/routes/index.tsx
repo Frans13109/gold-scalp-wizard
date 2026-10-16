@@ -58,27 +58,7 @@ function Dashboard() {
         </div>
       </section>
 
-      <section className="space-y-3 rounded-xl border-2 border-dashed border-warn/60 p-3" aria-label="Simulated signals">
-        <div className="space-y-1">
-          <h2 className="text-lg font-bold text-warn">Live BUY/SELL signals are not available yet</h2>
-          <p className="text-sm text-muted-foreground">
-            The cards below are SIMULATED examples built from synthetic demo candles. Their prices do not match the real market and must not be traded.
-          </p>
-        </div>
-        <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-secondary p-3" data-testid="live-price-beside-signals">
-          <span className="text-sm font-semibold">
-            {tick.state === "LIVE" ? "Real XAUUSD bid (live tick)" : priceLive ? "Real XAUUSD price (last closed M5)" : "XAUUSD price (simulated — no live data)"}
-          </span>
-          <span className="flex items-center gap-2">
-            <span className="num text-xl font-bold">{(tick.state === "LIVE" && tick.price != null ? tick.price : last.c).toFixed(2)}</span>
-            {tick.state === "LIVE" || priceLive ? <LiveTag /> : <DemoTag />}
-          </span>
-        </div>
-        <div className="grid gap-4 md:grid-cols-2">
-          <SignalCard side="BUY" signal={lastBuy} />
-          <SignalCard side="SELL" signal={lastSell} />
-        </div>
-      </section>
+      <EnginePanel result={engine} now={now} />
 
       <div className="grid grid-cols-2 gap-2 rounded-xl bg-secondary p-1" role="tablist">
         {(["M5", "M15"] as const).map((t) => (
