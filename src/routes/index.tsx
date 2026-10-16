@@ -128,7 +128,7 @@ function TickPrice({ tick }: { tick: LiveTick }) {
   const live = tick.state === "LIVE";
   const badge = live
     ? <span className="rounded border border-bull/50 px-2 py-0.5 text-xs font-bold text-bull">LIVE TICK</span>
-    : <span className="rounded bg-bear px-2 py-0.5 text-xs font-bold text-bear-foreground">{tick.state === "STALE" ? "STALE" : "CONNECTION LOST"}</span>;
+    : <span className="rounded border border-bear px-2 py-0.5 text-xs font-bold text-bear">{tick.state === "STALE" ? "STALE" : "CONNECTION LOST"}</span>;
   const secs = tick.ageMs == null ? "" : `${Math.round(tick.ageMs / 1000)}s ago`;
   return (
     <div data-testid="live-tick" data-state={tick.state}>
