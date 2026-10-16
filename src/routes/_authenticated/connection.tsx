@@ -17,7 +17,7 @@ export const Route = createFileRoute("/_authenticated/connection")({
 
 function Connection() {
   const { status, lastReportAt } = useBridgeStatus();
-  const color = status === "CONNECTED" ? "bull" : status === "ERROR" ? "warn" : "bear";
+  const [dot, txt] = status === "CONNECTED" ? ["bg-bull", "text-bull"] : status === "ERROR" ? ["bg-warn", "text-warn"] : ["bg-bear", "text-bear"];
   const msg =
     status === "CONNECTED" ? "The bridge sent a healthy report within the last 2 minutes."
     : status === "ERROR" ? "The bridge reported a problem with the MT5 terminal."
@@ -26,8 +26,8 @@ function Connection() {
     <div className="space-y-4">
       <Panel title="MT5 connection status">
         <div className="flex items-center gap-3">
-          <span className={`h-3 w-3 shrink-0 rounded-full bg-${color}`} />
-          <span className={`text-2xl font-bold text-${color}`}>{statusLabel(status)}</span>
+          <span className={`h-3 w-3 shrink-0 rounded-full ${dot}`} />
+          <span className={`text-2xl font-bold ${txt}`}>{statusLabel(status)}</span>
         </div>
         <p className="mt-2 text-sm text-muted-foreground">{msg}</p>
         <p className="mt-1 text-sm text-muted-foreground">

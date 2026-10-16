@@ -12,5 +12,3 @@ export function useBridgeStatus(): PublicBridgeStatus {
 }
 
 export const statusLabel = (s: PublicBridgeStatus["status"]) => s.replace("_", " ");
-export const statusColor = (s: PublicBridgeStatus["status"]) =>
-  s === "CONNECTED" ? "bull" : s === "ERROR" ? "warn" : "bear";
