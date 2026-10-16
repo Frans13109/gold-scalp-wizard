@@ -43,14 +43,31 @@ function Dashboard() {
         <div className="mt-4 grid grid-cols-3 gap-3">
           <Stat k="M15 trend" v={trend} cls={trend === "UP" ? "text-bull" : trend === "DOWN" ? "text-bear" : "text-muted-foreground"} />
           <Stat k="Spread" v={strategy.demoSpread.toFixed(2)} cls={spreadOk ? "text-bull" : "text-bear"} />
-          <Stat k="Signals" v={String(signals.length)} />
+          <Stat k="Simulated signals" v={String(signals.length)} />
         </div>
       </section>
 
-      <div className="grid gap-4 md:grid-cols-2">
-        <SignalCard side="BUY" signal={lastBuy} />
-        <SignalCard side="SELL" signal={lastSell} />
-      </div>
+      <section className="space-y-3 rounded-xl border-2 border-dashed border-warn/60 p-3" aria-label="Simulated signals">
+        <div className="space-y-1">
+          <h2 className="text-lg font-bold text-warn">Live BUY/SELL signals are not available yet</h2>
+          <p className="text-sm text-muted-foreground">
+            The cards below are SIMULATED examples built from synthetic demo candles. Their prices do not match the real market and must not be traded.
+          </p>
+        </div>
+        <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-secondary p-3" data-testid="live-price-beside-signals">
+          <span className="text-sm font-semibold">
+            {priceLive ? "Real XAUUSD price (last closed M5)" : "XAUUSD price (simulated — no live data)"}
+          </span>
+          <span className="flex items-center gap-2">
+            <span className="num text-xl font-bold">{last.c.toFixed(2)}</span>
+            {priceLive ? <LiveTag /> : <DemoTag />}
+          </span>
+        </div>
+        <div className="grid gap-4 md:grid-cols-2">
+          <SignalCard side="BUY" signal={lastBuy} />
+          <SignalCard side="SELL" signal={lastSell} />
+        </div>
+      </section>
 
       <div className="grid grid-cols-2 gap-2 rounded-xl bg-secondary p-1" role="tablist">
         {(["M5", "M15"] as const).map((t) => (
