@@ -182,18 +182,24 @@ export type Database = {
           entry: number
           entry_high: number | null
           entry_low: number | null
+          entry_reference: string | null
           expires_at: string
           id: string
+          indicators: Json
           invalidated_at: string | null
           invalidation_rule: string | null
           is_demo: boolean
+          m15_bias: string | null
           reasons: string[]
           rr_tp1: number
           rr_tp2: number | null
           rr_worst: number | null
           side: Database["public"]["Enums"]["signal_side"]
+          source_candle_time: string | null
+          spread: number | null
           status: Database["public"]["Enums"]["signal_status"]
           stop_loss: number
+          strategy_version: string | null
           symbol: string
           take_profit_1: number
           take_profit_2: number | null
@@ -206,18 +212,24 @@ export type Database = {
           entry: number
           entry_high?: number | null
           entry_low?: number | null
+          entry_reference?: string | null
           expires_at: string
           id?: string
+          indicators?: Json
           invalidated_at?: string | null
           invalidation_rule?: string | null
           is_demo?: boolean
+          m15_bias?: string | null
           reasons?: string[]
           rr_tp1: number
           rr_tp2?: number | null
           rr_worst?: number | null
           side: Database["public"]["Enums"]["signal_side"]
+          source_candle_time?: string | null
+          spread?: number | null
           status?: Database["public"]["Enums"]["signal_status"]
           stop_loss: number
+          strategy_version?: string | null
           symbol?: string
           take_profit_1: number
           take_profit_2?: number | null
@@ -230,18 +242,24 @@ export type Database = {
           entry?: number
           entry_high?: number | null
           entry_low?: number | null
+          entry_reference?: string | null
           expires_at?: string
           id?: string
+          indicators?: Json
           invalidated_at?: string | null
           invalidation_rule?: string | null
           is_demo?: boolean
+          m15_bias?: string | null
           reasons?: string[]
           rr_tp1?: number
           rr_tp2?: number | null
           rr_worst?: number | null
           side?: Database["public"]["Enums"]["signal_side"]
+          source_candle_time?: string | null
+          spread?: number | null
           status?: Database["public"]["Enums"]["signal_status"]
           stop_loss?: number
+          strategy_version?: string | null
           symbol?: string
           take_profit_1?: number
           take_profit_2?: number | null
