@@ -4,6 +4,7 @@ import { Panel, DemoTag, LiveTag } from "@/components/AppShell";
 import { CandleChart } from "@/components/CandleChart";
 import { EnginePanel } from "@/components/EnginePanel";
 import { evaluateSignal } from "@/lib/signal-engine";
+import { trendStat } from "@/lib/trend-stat";
 import { useDemoMarket } from "@/lib/use-demo";
 import { useLiveCandles } from "@/lib/use-live-candles";
 import { useLiveTick } from "@/lib/use-live-tick";
@@ -57,9 +58,9 @@ function Dashboard() {
             : live.M5.state === "STALE" ? "Real candles are out of date — showing simulated price." : "Simulated price — not a live quote."}
         </p>
         <div className="mt-4 grid grid-cols-3 gap-3">
-          <Stat k="M15 trend (simulated)" v={trend} cls={trend === "UP" ? "text-bull" : trend === "DOWN" ? "text-bear" : "text-muted-foreground"} />
+          {(() => { const s = trendStat(live.M5.state === "LIVE" && live.M15.state === "LIVE", trend, engine.bias);
+            return <Stat k={s.label} v={s.value} cls={s.tone === "bull" ? "text-bull" : s.tone === "bear" ? "text-bear" : "text-muted-foreground"} />; })()}
           <Stat k="Spread" v={strategy.demoSpread.toFixed(2)} cls={spreadOk ? "text-bull" : "text-bear"} />
-          <Stat k="Engine M15 bias" v={engine.bias} cls={engine.bias === "BULLISH" ? "text-bull" : engine.bias === "BEARISH" ? "text-bear" : "text-muted-foreground"} />
         </div>
       </section>
 
