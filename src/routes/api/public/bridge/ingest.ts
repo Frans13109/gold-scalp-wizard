@@ -111,6 +111,11 @@ export const Route = createFileRoute("/api/public/bridge/ingest")({
           const rows = body.candles.map((c) => ({ ...c, tick_volume: c.tick_volume ?? null, spread: c.spread ?? null, symbol: "XAUUSD", source: "mt5_bridge" as const }));
           const { error } = await supabaseAdmin.from("market_candles").upsert(rows, { onConflict: "symbol,timeframe,open_time" });
           if (error) { console.error("[bridge] candles", error.message); return json(500, { error: "store failed" }); }
+          // DEMO signal engine runs on newly closed M5 candles; failures never affect the upload response.
+          if (rows.some((r) => r.timeframe === "M5")) {
+            try { const { runSignalEngine } = await import("@/lib/signal-store.server"); await runSignalEngine(supabaseAdmin); }
+            catch (e) { console.error("[signal-engine]", e instanceof Error ? e.message : "error"); }
+          }
           return json(200, { ok: true, stored: rows.length });
         }
 
