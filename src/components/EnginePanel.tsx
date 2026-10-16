@@ -35,8 +35,9 @@ export function EnginePanel({ result, now }: { result: EngineResult; now: number
         </div>
       )}
 
+      <p className="text-sm text-muted-foreground">Message, bias and values below are from one calculation at <span className="num" data-testid="engine-checked-at">{new Date(now).toISOString().slice(11, 19)} UTC</span></p>
       <div className="grid grid-cols-2 gap-3 rounded-lg bg-secondary p-3 sm:grid-cols-4">
-        <F k="M15 bias" v={result.bias} cls={result.bias === "BULLISH" ? "text-bull" : result.bias === "BEARISH" ? "text-bear" : ""} />
+        <F k="M15 bias" v={result.bias} cls={result.bias === "BULLISH" ? "text-bull" : result.bias === "BEARISH" ? "text-bear" : ""} testId="engine-bias" />
         <F k="M15 EMA20 / 50" v={ind.m15 ? `${ind.m15.ema20.toFixed(2)} / ${ind.m15.ema50.toFixed(2)}` : "—"} />
         <F k="M5 EMA9 / 20" v={ind.m5 ? `${ind.m5.ema9.toFixed(2)} / ${ind.m5.ema20.toFixed(2)}` : "—"} />
         <F k="M5 RSI / ATR" v={ind.m5 ? `${ind.m5.rsi14.toFixed(1)} / ${ind.m5.atr14.toFixed(2)}` : "—"} />
@@ -49,11 +50,11 @@ export function EnginePanel({ result, now }: { result: EngineResult; now: number
   );
 }
 
-function F({ k, v, cls = "" }: { k: string; v: string; cls?: string }) {
+function F({ k, v, cls = "", testId }: { k: string; v: string; cls?: string; testId?: string }) {
   return (
     <div className="min-w-0">
       <dt className="text-sm text-muted-foreground">{k}</dt>
-      <dd className={`num truncate text-lg font-semibold ${cls}`}>{v}</dd>
+      <dd className={`num truncate text-lg font-semibold ${cls}`} data-testid={testId}>{v}</dd>
     </div>
   );
 }
