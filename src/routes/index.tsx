@@ -59,7 +59,7 @@ function Dashboard() {
         <div className="mt-4 grid grid-cols-3 gap-3">
           <Stat k="M15 trend (simulated)" v={trend} cls={trend === "UP" ? "text-bull" : trend === "DOWN" ? "text-bear" : "text-muted-foreground"} />
           <Stat k="Spread" v={strategy.demoSpread.toFixed(2)} cls={spreadOk ? "text-bull" : "text-bear"} />
-          <Stat k="Simulated signals" v={String(signals.length)} />
+          <Stat k="Engine M15 bias" v={engine.bias} cls={engine.bias === "BULLISH" ? "text-bull" : engine.bias === "BEARISH" ? "text-bear" : "text-muted-foreground"} />
         </div>
       </section>
 
