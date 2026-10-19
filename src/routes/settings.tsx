@@ -47,11 +47,11 @@ function Settings() {
       </Panel>
       <Panel title="Notification settings">
         <div className="space-y-3">
-          {tog(n, setN, "inApp", "In-app alerts")}
-          {tog(n, setN, "sound", "Sound")}
+          {tog(n, setN, "inApp", "In-app pop-up alerts")}
+          {tog(n, setN, "sound", "Sound (not available yet)")}
           {tog(n, setN, "buy", "Alert on BUY signals")}
           {tog(n, setN, "sell", "Alert on SELL signals")}
-          <p className="text-xs text-muted-foreground">Preferences are saved on this device. Alert delivery will activate once live data is connected — no alerts fire on demo data.</p>
+          <p className="text-xs text-muted-foreground">Preferences are saved on this device. Working now: an in-app pop-up while the Dashboard is open, once per new UNVALIDATED signal, only from fresh live MT5 data — never from demo or stale data. Not available yet: sound, browser desktop notifications and phone notifications.</p>
         </div>
       </Panel>
     </div>

@@ -4,6 +4,7 @@ import { Panel, DemoTag, LiveTag } from "@/components/AppShell";
 import { CandleChart } from "@/components/CandleChart";
 import { EnginePanel } from "@/components/EnginePanel";
 import { evaluateSignal } from "@/lib/signal-engine";
+import { useSignalAlerts } from "@/lib/use-signal-alerts";
 import { trendStat } from "@/lib/trend-stat";
 import { useDemoMarket } from "@/lib/use-demo";
 import { useLiveCandles } from "@/lib/use-live-candles";
@@ -43,6 +44,7 @@ function Dashboard() {
   const engine = useMemo(() => evaluateSignal(live.M5.candles, live.M15.candles, engineTick, now),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [live.M5.candles, live.M15.candles, engineTick?.bid, engineTick?.ask, engineTick?.tickTime, Math.floor(now / 1000)]);
+  useSignalAlerts(engine, { candlesLive: live.M5.state === "LIVE" && live.M15.state === "LIVE", tickLive: engineTick != null }, now);
 
   return (
     <div className="space-y-4">
