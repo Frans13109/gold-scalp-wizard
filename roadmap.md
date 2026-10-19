@@ -1,4 +1,5 @@
 # Roadmap
+- [x] Stage 1.1: isolated evaluator runtime/numeric hardening and deterministic edge-case tests; timing and trusted-adapter integration remain proposals pending approval
 - [x] Stage 1: isolated outcome evaluator and deterministic tests for review; no ingestion or persistence integration
 - [x] Mobile-friendly dashboard: separate M5/M15 views, richer signal cards, larger text
 - [x] Restore noUncheckedIndexedAccess and fix underlying errors properly
