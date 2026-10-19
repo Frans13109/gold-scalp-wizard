@@ -18,6 +18,8 @@ export const Route = createFileRoute("/_authenticated/connection")({
 
 function Connection() {
   const { status, lastReportAt } = useBridgeStatus();
+  const live = useLiveCandles();
+  const anyLive = live.M5.state === "LIVE" || live.M15.state === "LIVE";
   const [dot, txt] = status === "CONNECTED" ? ["bg-bull", "text-bull"] : status === "ERROR" ? ["bg-warn", "text-warn"] : ["bg-bear", "text-bear"];
   const msg =
     status === "CONNECTED" ? "The bridge sent a healthy report within the last 2 minutes."
