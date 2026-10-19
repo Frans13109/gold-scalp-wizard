@@ -49,7 +49,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     <div className="min-h-screen pb-20 md:pb-0">
       {anyLive ? (
         <div className="border-b border-bull/40 px-3 py-2 text-center text-sm font-bold tracking-wide text-bull">
-          LIVE MT5 PRICES — signal cards are still DEMO. Signals only, no trading.
+          LIVE MT5 PRICES — signals are UNVALIDATED (strategy in testing). Signals only, no trading.
         </div>
       ) : (
         <div className="demo-stripes px-3 py-2 text-center text-sm font-bold tracking-wide">

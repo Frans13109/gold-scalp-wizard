@@ -63,7 +63,7 @@ function History() {
                 <span className={`w-14 rounded px-2 py-1 text-center text-xs font-bold ${s.side === "BUY" ? "bg-bull/15 text-bull" : "bg-bear/15 text-bear"}`}>{s.side}</span>
                 <span className="num text-muted-foreground">{when(s.created_at)} · {s.timeframe}</span>
                 <span className="rounded border px-2 py-0.5 text-xs uppercase">{s.status.replace("_", " ")}</span>
-                {s.is_demo && <span className="rounded bg-muted px-2 py-0.5 text-xs font-bold">DEMO DATA</span>}
+                {s.is_demo && <span className="rounded bg-muted px-2 py-0.5 text-xs font-bold">UNVALIDATED</span>}
               </div>
               <div className="num grid grid-cols-2 gap-x-3 sm:grid-cols-4">
                 <span>Entry {s.entry_low != null && s.entry_high != null ? `${fmt(s.entry_low)}–${fmt(s.entry_high)}` : fmt(s.entry)}</span>

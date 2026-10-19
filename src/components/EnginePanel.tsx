@@ -9,7 +9,7 @@ export function EnginePanel({ result, now }: { result: EngineResult; now: number
     <section className="space-y-3 rounded-xl border-2 border-dashed border-warn/60 p-3" aria-label="Signal engine" data-testid="engine-panel">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h2 className="text-lg font-bold">Signal engine</h2>
-        <span className="rounded bg-warn px-2 py-0.5 text-xs font-bold text-warn-foreground">DEMO · TESTING — NOT VALIDATED</span>
+        <span className="rounded bg-warn px-2 py-0.5 text-xs font-bold text-warn-foreground">LIVE DATA · UNVALIDATED STRATEGY</span>
       </div>
       <p className="text-sm text-muted-foreground">
         Calculated from real MT5 candles and the live bid/ask. These are testing signals: they are not proven profitable, and nothing is ever traded.
@@ -17,7 +17,7 @@ export function EnginePanel({ result, now }: { result: EngineResult; now: number
 
       {result.state === "SIGNAL" && !expired ? (
         <div className={`rounded-lg border-l-4 bg-surface p-4 ${result.signal.side === "BUY" ? "border-l-bull" : "border-l-bear"}`} data-testid="engine-signal">
-          <div className={`text-2xl font-bold ${result.signal.side === "BUY" ? "text-bull" : "text-bear"}`}>{result.signal.side} · DEMO SIGNAL</div>
+          <div className={`text-2xl font-bold ${result.signal.side === "BUY" ? "text-bull" : "text-bear"}`}>{result.signal.side} · UNVALIDATED SIGNAL</div>
           <dl className="mt-3 grid grid-cols-2 gap-3">
             <F k={`Entry (${result.signal.entryReference})`} v={result.signal.entry.toFixed(result.signal.digits)} />
             <F k="Expires" v={t(result.signal.expiresAt)} />
