@@ -44,13 +44,13 @@ const aligned = (v: number) => v % OUTCOME_M5_MS === 0;
 const record = (v: unknown): v is Record<string, unknown> =>
   typeof v === "object" && v !== null && !Array.isArray(v);
 const signalShape = (v: unknown): v is OutcomeSignal => record(v)
-  && (v.side === "BUY" || v.side === "SELL") && v.symbol === "XAUUSD" && v.timeframe === "M5"
-  && typeof v.entry === "number" && typeof v.stopLoss === "number" && typeof v.takeProfit1 === "number"
-  && typeof v.createdAt === "number" && typeof v.expiresAt === "number";
+  && (v['side'] === "BUY" || v['side'] === "SELL") && v['symbol'] === "XAUUSD" && v['timeframe'] === "M5"
+  && typeof v['entry'] === "number" && typeof v['stopLoss'] === "number" && typeof v['takeProfit1'] === "number"
+  && typeof v['createdAt'] === "number" && typeof v['expiresAt'] === "number";
 const candleShape = (v: unknown): v is OutcomeCandle => record(v)
-  && typeof v.symbol === "string" && typeof v.timeframe === "string" && typeof v.source === "string"
-  && typeof v.openTime === "number" && typeof v.open === "number" && typeof v.high === "number"
-  && typeof v.low === "number" && typeof v.close === "number";
+  && typeof v['symbol'] === "string" && typeof v['timeframe'] === "string" && typeof v['source'] === "string"
+  && typeof v['openTime'] === "number" && typeof v['open'] === "number" && typeof v['high'] === "number"
+  && typeof v['low'] === "number" && typeof v['close'] === "number";
 const sameCandle = (a: OutcomeCandle, b: OutcomeCandle) =>
   a.open === b.open && a.high === b.high && a.low === b.low && a.close === b.close;
 
