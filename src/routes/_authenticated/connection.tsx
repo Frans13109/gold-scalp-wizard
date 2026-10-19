@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { Panel } from "@/components/AppShell";
 import { bridgeEndpoints } from "@/lib/mt5-bridge";
 import { useBridgeStatus, statusLabel } from "@/lib/use-bridge-status";
+import { useLiveCandles } from "@/lib/use-live-candles";
 
 export const Route = createFileRoute("/_authenticated/connection")({
   head: () => ({
@@ -33,7 +34,11 @@ function Connection() {
         <p className="mt-1 text-sm text-muted-foreground">
           Last report: {lastReportAt ? new Date(lastReportAt).toLocaleString() : "none"} · refreshes every 30 s
         </p>
-        <p className="mt-1 text-sm text-muted-foreground">Dashboard prices and signals are still DEMO DATA.</p>
+        <p className="mt-1 text-sm text-muted-foreground">
+          {anyLive
+            ? "LIVE MT5 PRICES · SIGNALS UNVALIDATED — Real MT5 market data is connected. Signals are generated from live data while the strategy is being tested. Signals and alerts only; no trading."
+            : "Dashboard prices and signals are DEMO DATA — live MT5 data is not fresh right now. Signals and alerts only; no trading."}
+        </p>
       </Panel>
       <Panel title="Planned read-only bridge interface">
         <p className="mb-3 text-sm text-muted-foreground">A future Python service on Windows will read XAUUSD data from your locally logged-in Exness MT5 terminal and expose these endpoints. It will be market-data only.</p>
