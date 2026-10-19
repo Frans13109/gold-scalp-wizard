@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { evaluateOutcome, OUTCOME_M5_MS as M5, type OutcomeCandle, type OutcomeSignal } from "@/lib/signal-outcomes";
+import { evaluateOutcome, OUTCOME_M5_MS as M5, OUTCOME_MAX_WINDOW_MS, OUTCOME_MAX_INPUT_CANDLES, type OutcomeCandle, type OutcomeSignal } from "@/lib/signal-outcomes";
 
 // Synthetic unit-test data only. Never imported into the dashboard or database.
 const start = Date.UTC(2026, 9, 19, 12, 0);
@@ -94,5 +94,89 @@ describe("isolated unvalidated outcome evaluator", () => {
     const s = Object.freeze(signal());
     const bars = Object.freeze(window().map(c => Object.freeze(c)));
     expect(run(s, [...bars])).toEqual(run(s, [...bars]));
+  });
+  it.each([{}, { high: 110 }, { low: 95 }])("missing middle candle cannot resolve %j", first => {
+    expect(run(signal(), [bar(start, first), bar(start + 2 * M5)])).toEqual({
+      state: "INCOMPLETE", reason: "MISSING_CANDLE", unvalidated: true });
+  });
+  it.each(["BUY", "SELL"] as const)("%s malformed candle after target rejects full window", side => {
+    expect(run(signal(side), [bar(start, side === "BUY" ? { high: 110 } : { low: 90 }),
+      bar(start + M5), bar(start + 2 * M5, { close: Infinity })])).toMatchObject({ state: "REJECTED", reason: "INVALID_CANDLE" });
+  });
+  it("conflicting duplicate after earlier hit rejects", () => {
+    expect(run(signal(), [...window({ high: 110 }), bar(start + 2 * M5, { high: 103 })]))
+      .toMatchObject({ state: "REJECTED", reason: "CONFLICTING_DUPLICATE" });
+  });
+  it.each(["BUY", "SELL"] as const)("%s favourable gap touching both uses SL", side => {
+    expect(run(signal(side), window(side === "BUY"
+      ? { open: 112, high: 114, low: 94, close: 100 }
+      : { open: 88, high: 106, low: 86, close: 100 }))).toMatchObject({ outcome: "sl", resultR: -1 });
+  });
+  it.each(["BUY", "SELL"] as const)("%s adverse gap touching both uses worse open", side => {
+    expect(run(signal(side), window(side === "BUY"
+      ? { open: 93, high: 111, low: 92, close: 100 }
+      : { open: 107, high: 108, low: 89, close: 100 }))).toMatchObject({ outcome: "sl", resultR: -1.4 });
+  });
+  it.each(["BUY", "SELL"] as const)("%s unusual saved levels use actual risk", side => {
+    const s = { ...signal(side), entry: 100.25, stopLoss: side === "BUY" ? 98.75 : 101.75,
+      takeProfit1: side === "BUY" ? 100.625 : 99.875 };
+    const bars = [bar(start, side === "BUY"
+      ? { open: 100.25, low: 100, high: 100.625, close: 100.25 }
+      : { open: 100.25, low: 99.875, high: 100.5, close: 100.25 }),
+      bar(start + M5), bar(start + 2 * M5)];
+    expect(run(s, bars)).toMatchObject({ outcome: "tp1", resultR: 0.25 });
+  });
+  it.each([NaN, Infinity, -1, 1.5, Number.MAX_SAFE_INTEGER, "2026-10-19T12:00:00Z"])("rejects invalid now %s", now => {
+    expect(evaluateOutcome(signal(), window(), now)).toMatchObject({ state: "REJECTED", reason: "INVALID_SIGNAL" });
+  });
+  it.each(["createdAt", "expiresAt"] as const)("rejects invalid %s timestamps", field => {
+    for (const value of [NaN, Infinity, -1, 1.5, Number.MAX_SAFE_INTEGER]) {
+      expect(run({ ...signal(), [field]: value })).toMatchObject({ state: "REJECTED", reason: "INVALID_SIGNAL" });
+    }
+  });
+  it.each(["open", "high", "low", "close"] as const)("rejects malformed candle %s", field => {
+    for (const value of [NaN, Infinity, -Infinity, 0, -1]) {
+      expect(run(signal(), window({ [field]: value }))).toMatchObject({ state: "REJECTED", reason: "INVALID_CANDLE" });
+    }
+  });
+  it("extreme finite reward/risk overflow cannot become expired", () => {
+    expect(run({ ...signal(), entry: 2 * Number.MIN_VALUE, stopLoss: Number.MIN_VALUE,
+      takeProfit1: Number.MAX_VALUE })).toMatchObject({ state: "REJECTED", reason: "INVALID_SIGNAL" });
+  });
+  it("finite extreme prices can yield a finite estimate", () => {
+    const s = { ...signal(), entry: 1e300, stopLoss: 5e299, takeProfit1: 1.5e300 };
+    const bars = Array.from({ length: 3 }, (_, i) => bar(start + i * M5,
+      { open: 1e300, low: 1e300, high: 1.5e300, close: 1e300 }));
+    expect(run(s, bars)).toMatchObject({ outcome: "tp1", resultR: 1 });
+  });
+  it.each([null, undefined, 7, "signal", [], {}, { ...signal(), entry: "100" }])("runtime-invalid signal %j rejects without throwing", s => {
+    expect(evaluateOutcome(s, window(), start + 3 * M5)).toMatchObject({ state: "REJECTED", reason: "INVALID_SIGNAL" });
+  });
+  it.each([null, undefined, 7, {}, "candles", [null], [undefined], [{}], Array(3)])("runtime-invalid candles %j reject without throwing", bars => {
+    expect(evaluateOutcome(signal(), bars, start + 3 * M5)).toMatchObject({ state: "REJECTED", reason: "INVALID_CANDLE" });
+  });
+  it("exact expiry closes the last eligible candle; one millisecond earlier cannot resolve", () => {
+    const bars = [bar(start), bar(start + M5), bar(start + 2 * M5, { high: 110 })];
+    expect(run(signal(), bars, start + 3 * M5 - 1)).toMatchObject({ state: "INCOMPLETE" });
+    expect(run(signal(), bars)).toMatchObject({ outcome: "tp1", closedAt: start + 3 * M5 });
+  });
+  it("UTC offset representations describe identical instants", () => {
+    expect(Date.parse("2026-10-19T14:00:00+02:00")).toBe(start);
+    expect(run({ ...signal(), createdAt: Date.parse("2026-10-19T14:00:00+02:00") })).toEqual(run());
+  });
+  it("24-hour window is allowed only with complete coverage", () => {
+    const s = { ...signal(), expiresAt: start + OUTCOME_MAX_WINDOW_MS };
+    const bars = Array.from({ length: 288 }, (_, i) => bar(start + i * M5));
+    expect(run(s, bars, s.expiresAt)).toMatchObject({ outcome: "expired" });
+    expect(run(s, bars.slice(1), s.expiresAt)).toMatchObject({ state: "INCOMPLETE" });
+  });
+  it("window beyond 24 hours rejects before coverage iteration", () => {
+    const s = { ...signal(), expiresAt: start + OUTCOME_MAX_WINDOW_MS + M5 };
+    expect(run(s, [], s.expiresAt)).toMatchObject({ state: "REJECTED", reason: "LIMIT_EXCEEDED" });
+  });
+  it("input limit counts duplicates and rejects above 2048", () => {
+    const bars = [...window(), ...Array.from({ length: OUTCOME_MAX_INPUT_CANDLES - 3 }, () => bar())];
+    expect(run(signal(), bars)).toMatchObject({ outcome: "expired" });
+    expect(run(signal(), [...bars, bar()])).toMatchObject({ state: "REJECTED", reason: "LIMIT_EXCEEDED" });
   });
 });
