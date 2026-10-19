@@ -1,0 +1,98 @@
+import { describe, expect, it } from "vitest";
+import { evaluateOutcome, OUTCOME_M5_MS as M5, type OutcomeCandle, type OutcomeSignal } from "@/lib/signal-outcomes";
+
+// Synthetic unit-test data only. Never imported into the dashboard or database.
+const start = Date.UTC(2026, 9, 19, 12, 0);
+const signal = (side: "BUY" | "SELL" = "BUY"): OutcomeSignal => ({ side, symbol: "XAUUSD", timeframe: "M5",
+  entry: 100, stopLoss: side === "BUY" ? 95 : 105, takeProfit1: side === "BUY" ? 110 : 90,
+  createdAt: start, expiresAt: start + 3 * M5, provenance: "verified_mt5" });
+const bar = (openTime = start, changes: Partial<OutcomeCandle> = {}): OutcomeCandle => ({
+  symbol: "XAUUSD", timeframe: "M5", source: "mt5_bridge", openTime,
+  open: 100, high: 102, low: 98, close: 100, ...changes });
+const window = (first: Partial<OutcomeCandle> = {}) => [bar(start, first), bar(start + M5), bar(start + 2 * M5)];
+const run = (s = signal(), bars = window(), now = start + 3 * M5) => evaluateOutcome(s, bars, now);
+
+describe("isolated unvalidated outcome evaluator", () => {
+  it.each(["BUY", "SELL"] as const)("%s exact SL touch gives -1R", side => {
+    expect(run(signal(side), window(side === "BUY" ? { low: 95 } : { high: 105 }))).toMatchObject({
+      state: "RESOLVED", outcome: "sl", exitPrice: side === "BUY" ? 95 : 105, resultR: -1,
+      closedAt: start + M5, unvalidated: true, method: "bid_candle_estimate" });
+  });
+  it.each(["BUY", "SELL"] as const)("%s exact TP1 touch gives +2R", side => {
+    expect(run(signal(side), window(side === "BUY" ? { high: 110 } : { low: 90 }))).toMatchObject({
+      state: "RESOLVED", outcome: "tp1", exitPrice: side === "BUY" ? 110 : 90, resultR: 2 });
+  });
+  it.each(["BUY", "SELL"] as const)("%s both levels touched resolves SL conservatively", side => {
+    expect(run(signal(side), window({ low: 90, high: 110 }))).toMatchObject({ outcome: "sl", resultR: -1 });
+  });
+  it.each(["BUY", "SELL"] as const)("%s adverse opening gap uses worse exit", side => {
+    const first = side === "BUY" ? { open: 93, low: 92, high: 100, close: 99 } : { open: 107, high: 108, low: 100, close: 101 };
+    expect(run(signal(side), window(first))).toMatchObject({ outcome: "sl", exitPrice: side === "BUY" ? 93 : 107, resultR: -1.4 });
+  });
+  it.each(["BUY", "SELL"] as const)("%s favourable opening gap does not inflate reward", side => {
+    const first = side === "BUY" ? { open: 112, low: 111, high: 114, close: 113 } : { open: 88, low: 86, high: 89, close: 87 };
+    expect(run(signal(side), window(first))).toMatchObject({ outcome: "tp1", resultR: 2 });
+  });
+  it("favourable gap with both levels still uses stop first", () => {
+    expect(run(signal(), window({ open: 112, high: 114, low: 94, close: 100 }))).toMatchObject({ outcome: "sl", resultR: -1 });
+  });
+  it("expiry is not fabricated breakeven", () => {
+    expect(run()).toEqual({ state: "RESOLVED", outcome: "expired", exitPrice: null, resultR: null,
+      closedAt: start + 3 * M5, unvalidated: true, method: "bid_candle_estimate" });
+  });
+  it("computes R from actual saved levels, not a hardcoded target multiple", () => {
+    expect(run({ ...signal(), takeProfit1: 107 }, window({ high: 107 }))).toMatchObject({ resultR: 1.4 });
+  });
+  it("ignores source candles and candles opening at expiry", () => {
+    expect(run(signal(), [bar(start - M5, { low: 90, high: 110 }), ...window(), bar(start + 3 * M5, { low: 90 })])).toMatchObject({ outcome: "expired" });
+  });
+  it("never resolves from a forming or not-yet-observed full window", () => {
+    expect(run(signal(), window({ high: 110 }), start + M5)).toMatchObject({ state: "INCOMPLETE", reason: "WINDOW_NOT_CLOSED" });
+  });
+  it("partial creation candle cannot confirm an otherwise visible target", () => {
+    expect(run({ ...signal(), createdAt: start + 7_000 }, window({ high: 110 }))).toMatchObject({ state: "INCOMPLETE", reason: "PARTIAL_BOUNDARY" });
+  });
+  it("partial expiry candle cannot confirm loss", () => {
+    expect(run({ ...signal(), expiresAt: start + 2 * M5 + 7_000 }, window({ low: 95 }))).toMatchObject({ state: "INCOMPLETE", reason: "PARTIAL_BOUNDARY" });
+  });
+  it("missing coverage even after a potential hit cannot confirm a result", () => {
+    expect(run(signal(), [bar(start, { high: 110 }), bar(start + M5)])).toMatchObject({ state: "INCOMPLETE", reason: "MISSING_CANDLE" });
+  });
+  it("missing earlier candle cannot let a later loss decide the result", () => {
+    expect(run(signal(), [bar(start + M5, { low: 95 }), bar(start + 2 * M5)])).toMatchObject({ state: "INCOMPLETE" });
+  });
+  it.each(["simulated", "legacy_unknown"] as const)("rejects %s provenance without legacy backfill", provenance => {
+    expect(run({ ...signal(), provenance }, window({ high: 110 }))).toMatchObject({ state: "REJECTED", reason: "UNVERIFIED_PROVENANCE" });
+  });
+  it.each([{ source: "demo" }, { timeframe: "M15" }, { symbol: "EURUSD" }])("ineligible bars cannot fill coverage: %j", change => {
+    expect(run(signal(), [bar(start, change), bar(start + M5), bar(start + 2 * M5)])).toMatchObject({ state: "INCOMPLETE", reason: "MISSING_CANDLE" });
+  });
+  it.each([NaN, Infinity, 0, -1])("rejects malformed signal price %s", entry => {
+    expect(run({ ...signal(), entry })).toMatchObject({ state: "REJECTED", reason: "INVALID_SIGNAL" });
+  });
+  it("rejects inverted/zero-risk levels", () => {
+    expect(run({ ...signal(), stopLoss: 100 })).toMatchObject({ reason: "INVALID_SIGNAL" });
+    expect(run({ ...signal("SELL"), takeProfit1: 110 })).toMatchObject({ reason: "INVALID_SIGNAL" });
+  });
+  it.each([{ high: NaN }, { low: 101 }, { high: 99 }, { openTime: start + 1 }, { openTime: NaN }])("rejects malformed candle %j", changes => {
+    expect(run(signal(), window(changes))).toMatchObject({ state: "REJECTED", reason: "INVALID_CANDLE" });
+  });
+  it("identical duplicate and delayed/reversed uploads give the same earliest result", () => {
+    const bars = [bar(start, { high: 110 }), bar(start + M5, { low: 95 }), bar(start + 2 * M5)];
+    expect(run(signal(), [...bars].reverse(), start + 20 * M5)).toEqual(run(signal(), [...bars, bar(start, { high: 110 })]));
+    expect(run(signal(), bars)).toMatchObject({ outcome: "tp1", closedAt: start + M5 });
+  });
+  it("conflicting duplicate bars cannot select a convenient result", () => {
+    expect(run(signal(), [...window(), bar(start, { high: 110 })])).toMatchObject({ state: "REJECTED", reason: "CONFLICTING_DUPLICATE" });
+  });
+  it("rejects malformed time and reversed lifetime", () => {
+    expect(run({ ...signal(), createdAt: NaN })).toMatchObject({ reason: "INVALID_SIGNAL" });
+    expect(run({ ...signal(), expiresAt: start })).toMatchObject({ reason: "INVALID_SIGNAL" });
+    expect(run(signal(), window(), start - 1)).toMatchObject({ reason: "INVALID_SIGNAL" });
+  });
+  it("is deterministic and does not mutate frozen inputs", () => {
+    const s = Object.freeze(signal());
+    const bars = Object.freeze(window().map(c => Object.freeze(c)));
+    expect(run(s, [...bars])).toEqual(run(s, [...bars]));
+  });
+});
