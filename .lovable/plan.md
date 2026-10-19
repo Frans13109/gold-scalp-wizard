@@ -6,6 +6,8 @@ Prepare a disposable research prototype only after separate approval. No product
 
 A separate database test environment has **not been verified or provisioned**. The architecture, code contract and tests below are proposals, not implemented safeguards or completed tests. Creating this plan does not authorize running the prototype.
 
+**Verified repository facts:** `src/routes/api/public/bridge/ingest.ts` records replay IDs before separate market writes and overwrites candle projections; `src/lib/signal-store.server.ts` separately reads candles/tick and saves signals without immutable input manifests. `src/lib/signal-outcomes.ts` requires aligned creation/expiry and full closed coverage, with 24-hour/2,048-bar limits. Existing Vitest configuration establishes no disposable database lifecycle. These are code findings, not verification of deployed database behavior.
+
 ## 1. Test architecture
 
 Use a separate source directory and disposable PostgreSQL instance on an isolated runner, not the current app, Preview or production Supabase. Use Vitest for deterministic unit/contract tests and two independent PostgreSQL connections for real transaction/race tests. An in-memory store can test state transitions but cannot prove PostgreSQL locking, rollback or concurrency.
@@ -34,6 +36,7 @@ All fixtures are explicitly synthetic, not fabricated live signals:
 - Fixed UTC clock; aligned M5/M15 opening times, plus signals created between M5 boundaries. Include equivalent timestamps with explicit offsets and invalid timestamps.
 - At least 60 closed M15 and 50 closed M5 bars for engine reproducibility, a fresh synthetic quote, and unchanged engine settings. Use reviewed deterministic inputs that genuinely qualify under the existing rules; otherwise expect NO_TRADE, never force an engine signal.
 - BUY: entry 2000, SL 1990, TP1 2020. SELL: entry 2000, SL 2010, TP1 1980. Full-window target hits yield +2R; exact stop hits yield -1R. Adverse opening gaps may yield less than -1R. Target gaps do not invent improved fills.
+- Complete no-touch expiry returns no exit price or R; never invent an expiry fill. Hit timestamps represent candle close, not known intrabar execution time.
 - Exact touches, both-level touches, symmetric gaps, malformed/conflicting duplicates, corrected versions before/after finalization.
 - Complete creation-to-expiry closed-M5 coverage; missing first/middle/last bars; late arrivals; still-forming bars; off-grid creation; unknown provenance; preserved `is_demo=true` legacy-like exclusion fixtures.
 - Identical raw request bytes, semantically equivalent but differently encoded payloads, reused IDs with changed bytes, invalid authentication and failure injection at each write step.
@@ -53,6 +56,7 @@ Every expected result must reference concrete fixture values and the current eva
 | Ambiguous correction order | Old upload arrives after a correction, with no trustworthy revision sequence | Mark disputed/unresolved and block affected finalization. Require an approved ordering contract; do not assume receipt time proves market correctness. |
 | Reproducible snapshot | Regenerate from pinned IDs/config/time/quote after projections advance | Identical unchanged-engine output and reasons. Missing/modified evidence or mismatched hashes blocks generation/finalization. No latest-row substitution. |
 | Snapshot capture race | Correction occurs while inputs are read | Snapshot contains one consistent selected version set and exactly the values used by the engine. Transactional capture or validated manifest retry prevents mixed/replaced inputs. |
+| Quote ordering race | Older and newer tick uploads commit in reversed order | Preserve both signal-used quotes; latest projection never regresses by tick time. Conflicting equal-time quotes require a defined conflict policy, not arbitrary overwrite. |
 | Missing/delayed coverage | Remove a middle candle, then deliver it late | Initially INCOMPLETE, no final row. Arrival triggers retry using market-time order; only complete closed coverage permits a terminal estimate. |
 | Unclosed/invalid evidence | Clock before bar close; invalid/conflicting bar after an apparent hit | No confirmed win/loss/expiry. Invalid evidence is rejected or deferred with a durable reason; it is not skipped. |
 | Partway-M5 creation | Create 10:02 UTC; next bar opens 10:05; possible 10:02–10:05 touch | Do not count the 10:00 bar, round creation backward or extend original expiry. Full original-window outcome remains INCOMPLETE with M5-only evidence, even if later bars hit a level. |
