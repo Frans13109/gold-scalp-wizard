@@ -215,7 +215,7 @@ export function mergeTickBatches(batches: unknown): MergedTickEvidence {
 export type CoverageAssessment = Common & (
   | { state: "REJECTED"; reason: "INVALID_INPUT" | "INVALID_WINDOW" }
   | { state: "INCOMPLETE"; reason: "WINDOW_NOT_CLOSED" | "COVERAGE_GAP"; firstGapMsc?: number }
-  | { state: "UNCERTAIN"; reason: "UNCERTAIN_SPAN" | "CONFLICTING_EVIDENCE" | "BOUNDARY_CLOCK_AMBIGUITY" }
+  | { state: "UNCERTAIN"; reason: "UNCERTAIN_SPAN" | "CONFLICTING_EVIDENCE" }
   | { state: "CLAIMED_UNVERIFIED" });
 
 /** Assess declared coverage for inclusive [fromMsc, toMsc]. Never returns a verified/complete state. */
@@ -237,9 +237,5 @@ export function assessCoverage(merged: unknown, window: unknown, options: unknow
   const overlaps = (a: number, b: number) => a <= need.to && b >= need.from;
   if (m.conflicts.some((c) => overlaps(c.fromMsc, c.toMsc))) return { ...common, state: "UNCERTAIN", reason: "CONFLICTING_EVIDENCE" };
   if (m.coverage.some((s) => s.status === "uncertain" && overlaps(s.fromMsc, s.toMsc))) return { ...common, state: "UNCERTAIN", reason: "UNCERTAIN_SPAN" };
-  // A claimed span boundary that falls inside the window ± margin is a seam whose clock alignment is unknown.
-  const inner = (t: number) => t > need.from && t < need.to;
-  if (claimed.some((s) => overlaps(s.fromMsc, s.toMsc) && (inner(s.fromMsc) && s.fromMsc - margin <= from || inner(s.toMsc) && s.toMsc + margin >= to)))
-    return { ...common, state: "UNCERTAIN", reason: "BOUNDARY_CLOCK_AMBIGUITY" };
   return { ...common, state: "CLAIMED_UNVERIFIED" };
 }
