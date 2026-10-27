@@ -202,4 +202,143 @@ describe("tick-aware outcome calculator (Phase 1a, isolated)", () => {
     const results = [run(), run({ ...sig(), evidence: "legacy" }), run(sig(), []), run(sig(), background(), fullCov({ toMsc: T0 }))];
     for (const r of results) expect(r).toMatchObject({ unvalidated: true, method: "tick_quote_observation" });
   });
+
+  describe("Phase 1c safety regressions", () => {
+    const NOW = at(60_005);
+    const hit = (side: "BUY" | "SELL", outcome: "tp1" | "sl", ms: number) =>
+      side === "BUY"
+        ? tk(ms, outcome === "tp1" ? 4010 : 3995, outcome === "tp1" ? 4010.2 : 3995.2)
+        : tk(ms, outcome === "tp1" ? 3989.8 : 4004.8, outcome === "tp1" ? 3990 : 4005);
+
+    it.each([
+      ["BUY", "tp1"], ["BUY", "sl"], ["SELL", "tp1"], ["SELL", "sl"],
+    ] as const)("future %s %s cannot resolve, but exact-now hit can", (side, outcome) => {
+      const ticks = background(T0 - 1000, NOW);
+      expect(run(sig(side), [...ticks, hit(side, outcome, NOW + 1)], fullCov(), opts({ nowMsc: NOW })))
+        .toMatchObject({ state: "INCOMPLETE", reason: "WINDOW_NOT_CLOSED" });
+      expect(run(sig(side), [...ticks, hit(side, outcome, NOW)], fullCov(), opts({ nowMsc: NOW })))
+        .toMatchObject({ state: "RESOLVED", outcome, observedAtMsc: NOW, resultR: outcome === "tp1" ? 2 : -1 });
+    });
+    it("future stop cannot override a same-millisecond-now target", () => {
+      expect(run(sig(), [...background(T0 - 1000, NOW), hit("BUY", "tp1", NOW), hit("BUY", "sl", NOW + 1)],
+        fullCov(), opts({ nowMsc: NOW }))).toMatchObject({ outcome: "tp1", observedAtMsc: NOW });
+    });
+    it("future ticks cannot fill quiet evidence before an unobserved hit", () => {
+      expect(run(sig(), [tk(NOW + 1, 4000, 4000.2), hit("BUY", "tp1", NOW + 2)], fullCov(), opts({ nowMsc: NOW })))
+        .toMatchObject({ state: "INCOMPLETE", reason: "WINDOW_NOT_CLOSED" });
+    });
+    it("future clock-ambiguous hit cannot influence the current result", () => {
+      expect(run(sig(), [...background(T0 - 1000, EXP - 3000), hit("BUY", "tp1", EXP - 1000)],
+        fullCov(), opts({ nowMsc: EXP - 3000 }))).toMatchObject({ state: "INCOMPLETE", reason: "WINDOW_NOT_CLOSED" });
+    });
+    it.each([NaN, Infinity, -Infinity, -1, 1.5, 8.64e15 + 1, "1793095503250", null, undefined])(
+      "invalid now timestamp %s is rejected", (nowMsc) => {
+        expect(run(sig(), background(), fullCov(), opts({ nowMsc })))
+          .toMatchObject({ state: "REJECTED", reason: "INVALID_OPTIONS" });
+      });
+    it("expiry cannot resolve one millisecond early even with future evidence", () => {
+      expect(run(sig(), background(), fullCov(), opts({ nowMsc: EXP - 1 })))
+        .toMatchObject({ state: "INCOMPLETE", reason: "WINDOW_NOT_CLOSED" });
+      expect(run(sig(), background(), fullCov(), opts({ nowMsc: EXP })))
+        .toMatchObject({ state: "RESOLVED", outcome: "expired", observedAtMsc: EXP });
+    });
+    it("future coverage alone cannot cover the eligible prefix", () => {
+      expect(run(sig(), [hit("BUY", "tp1", NOW + 1)], fullCov({ fromMsc: NOW + 1 }), opts({ nowMsc: NOW })))
+        .toMatchObject({ state: "INCOMPLETE", reason: "WINDOW_NOT_CLOSED" });
+    });
+    it("future uncertain coverage cannot invalidate an observed early hit", () => {
+      const cov: CoverageSpan[] = [...fullCov(), { source: SRC, fromMsc: NOW + 1, toMsc: EXP, status: "uncertain" }];
+      expect(run(sig(), [...background(T0 - 1000, NOW), hit("BUY", "tp1", NOW)], cov, opts({ nowMsc: NOW })))
+        .toMatchObject({ state: "RESOLVED", outcome: "tp1" });
+    });
+    it.each(["BUY", "SELL"] as const)("%s extreme gap rejects non-finite R", (side) => {
+      const s = sig(side, { entry: 1e-300, stopLoss: side === "BUY" ? 5e-301 : 1.5e-300, takeProfit1: side === "BUY" ? 2e-300 : 5e-301 });
+      const extreme = side === "BUY" ? tk(NOW, Number.MIN_VALUE, Number.MIN_VALUE) : tk(NOW, 1e308, Number.MAX_VALUE);
+      if (side === "BUY") {
+        // BUY adverse quote remains positive, so the loss is bounded by entry/risk.
+        const tinyRisk = sig("BUY", { entry: 1e100, stopLoss: 1e100 - 2e84, takeProfit1: 1e100 + 2e84 });
+        const result = run(tinyRisk, [tk(NOW, 1, 1)], fullCov(), opts({ maxQuietMs: 100_000 }));
+        expect(result).toMatchObject({ state: "RESOLVED", outcome: "sl", exitPrice: 1 });
+        if (result.state !== "RESOLVED") throw new Error("Expected finite BUY gap result");
+        expect(Number.isFinite(result.resultR)).toBe(true);
+      } else {
+        expect(run(s, [extreme], fullCov(), opts({ maxQuietMs: 100_000 })))
+          .toMatchObject({ state: "REJECTED", reason: "INVALID_TICK" });
+      }
+    });
+    it.each(["BUY", "SELL"] as const)("%s subnormal positive risk yields finite exact-level R", (side) => {
+      const unit = Number.MIN_VALUE;
+      const s = sig(side, { entry: 2 * unit, stopLoss: side === "BUY" ? unit : 3 * unit, takeProfit1: side === "BUY" ? 3 * unit : unit });
+      for (const outcome of ["sl", "tp1"] as const) {
+        const price = outcome === "sl" ? s.stopLoss : s.takeProfit1;
+        expect(run(s, [tk(NOW, price, price)], fullCov(), opts({ maxQuietMs: 100_000 })))
+          .toMatchObject({ state: "RESOLVED", outcome, resultR: outcome === "sl" ? -1 : 1 });
+      }
+    });
+    it.each(["BUY", "SELL"] as const)("%s non-finite target R is rejected before resolution", (side) => {
+      const s = sig(side, side === "BUY"
+        ? { entry: 1e-300, stopLoss: 5e-301, takeProfit1: Number.MAX_VALUE }
+        : { entry: 1e100, stopLoss: 1e100 + 2e84, takeProfit1: Number.MIN_VALUE });
+      // SELL with positive quotes has a bounded reward; exercise invalid geometry instead of claiming overflow.
+      const input = side === "SELL" ? { ...s, stopLoss: s.entry } : s;
+      expect(run(input, [], fullCov())).toMatchObject({ state: "REJECTED", reason: "INVALID_SIGNAL" });
+    });
+    it.each([NaN, Infinity, -Infinity, 0, -1, "4000", null])("malformed gap quote %s never yields a result", (price) => {
+      expect(run(sig(), [{ ...tk(NOW, 4000, 4000.2), bid: price }]))
+        .toMatchObject({ state: "REJECTED", reason: "INVALID_TICK" });
+    });
+    it.each(["entry", "stopLoss", "takeProfit1"] as const)("non-finite signal %s is rejected", (field) => {
+      expect(run({ ...sig(), [field]: Infinity })).toMatchObject({ state: "REJECTED", reason: "INVALID_SIGNAL" });
+    });
+    it.each(["BUY", "SELL"] as const)("%s early hit requires coverage through its exact millisecond", (side) => {
+      const ticks = [...background(T0 - 1000, NOW), hit(side, "sl", NOW)];
+      expect(run(sig(side), ticks, fullCov({ toMsc: NOW }), opts({ nowMsc: NOW })))
+        .toMatchObject({ state: "RESOLVED", outcome: "sl", observedAtMsc: NOW });
+      expect(run(sig(side), ticks, fullCov({ toMsc: NOW - 1 }), opts({ nowMsc: NOW })))
+        .toMatchObject({ state: "INCOMPLETE", reason: "WINDOW_NOT_CLOSED" });
+    });
+    it("one millisecond of missing prefix coverage blocks a later hit", () => {
+      const cov: CoverageSpan[] = [
+        { source: SRC, fromMsc: T0 - 5000, toMsc: at(30_000), status: "ok" },
+        { source: SRC, fromMsc: at(30_002), toMsc: NOW, status: "ok" },
+      ];
+      expect(run(sig(), [...background(T0 - 1000, NOW), hit("BUY", "tp1", NOW)], cov))
+        .toMatchObject({ state: "INCOMPLETE", reason: "COVERAGE_GAP" });
+    });
+    it.each(["failed", "uncertain"] as const)("%s coverage at/before hit blocks it; after hit does not", (status) => {
+      const ticks = [...background(T0 - 1000, NOW), hit("BUY", "tp1", NOW)];
+      for (const ms of [at(30_000), NOW]) {
+        expect(run(sig(), ticks, [...fullCov(), { source: SRC, fromMsc: ms, toMsc: ms, status }]))
+          .toMatchObject({ state: "UNCERTAIN", reason: "COVERAGE_UNCERTAIN" });
+      }
+      expect(run(sig(), ticks, [...fullCov(), { source: SRC, fromMsc: NOW + 1, toMsc: EXP - 1, status }]))
+        .toMatchObject({ state: "RESOLVED", outcome: "tp1" });
+    });
+    it("quiet gap before a hit blocks it; missing ticks after hit do not", () => {
+      expect(run(sig(), [hit("BUY", "tp1", NOW)], fullCov()))
+        .toMatchObject({ state: "UNCERTAIN", reason: "QUIET_GAP" });
+      expect(run(sig(), [...background(T0 - 1000, NOW), hit("BUY", "tp1", NOW)], fullCov({ toMsc: NOW })))
+        .toMatchObject({ state: "RESOLVED", outcome: "tp1" });
+    });
+    it.each([EXP, EXP + 1])("hit at expiry boundary %s is ineligible", (ms) => {
+      expect(run(sig(), [...background(), hit("BUY", "sl", ms)]))
+        .toMatchObject({ state: "RESOLVED", outcome: "expired", exitPrice: null, resultR: null });
+    });
+    it("early same-ms ambiguity stays SL-first and repeated evaluations stay identical", () => {
+      const ticks = [...background(T0 - 1000, NOW), hit("BUY", "tp1", NOW), { ...hit("BUY", "sl", NOW), seq: 1 }];
+      const cov = fullCov({ toMsc: NOW });
+      const result = run(sig(), ticks, cov, opts({ nowMsc: NOW }));
+      expect(result).toMatchObject({ state: "RESOLVED", outcome: "sl", unvalidated: true, method: "tick_quote_observation" });
+      expect(run(sig(), [...ticks, ...ticks].reverse(), cov, opts({ nowMsc: NOW }))).toEqual(result);
+      expect(run(sig(), [...ticks, { ...hit("BUY", "tp1", NOW), bid: 4011 }], cov, opts({ nowMsc: NOW })))
+        .toMatchObject({ state: "REJECTED", reason: "CONFLICTING_DUPLICATE" });
+    });
+    it("malformed or conflicting evidence after an early hit remains rejected", () => {
+      const ticks = [...background(T0 - 1000, NOW), hit("BUY", "tp1", NOW)];
+      expect(run(sig(), [...ticks, tk(NOW + 10, NaN, 4000)], fullCov({ toMsc: NOW })))
+        .toMatchObject({ state: "REJECTED", reason: "INVALID_TICK" });
+      expect(run(sig(), [...ticks, tk(NOW + 10, 4000, 4000.2), tk(NOW + 10, 4001, 4001.2)], fullCov({ toMsc: NOW })))
+        .toMatchObject({ state: "REJECTED", reason: "CONFLICTING_DUPLICATE" });
+    });
+  });
 });

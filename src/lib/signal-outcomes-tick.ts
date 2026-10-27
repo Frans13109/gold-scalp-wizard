@@ -4,7 +4,9 @@
  * BUY: entered on ask, observed on bid (TP1 bid >= TP1, SL bid <= SL).
  * SELL: entered on bid, observed on ask (TP1 ask <= TP1, SL ask >= SL).
  * A successful history fetch is NOT proof of complete coverage; the caller must supply coverage spans,
- * and any gap, uncertain span, quiet spell or clock ambiguity yields INCOMPLETE/UNCERTAIN, never a result.
+ * and any gap, uncertain span, quiet spell or clock ambiguity before a hit blocks that result.
+ * Early hits require observed prefix coverage, not full-window completeness; expiry needs the full window.
+ * Future-relative-to-now evidence never extends the observed prefix or determines an outcome.
  * Sampled live ticks are not evidence: only source "mt5_tick_history" ticks and spans are used.
  */
 import { at } from "./market";
@@ -91,7 +93,8 @@ export function evaluateTickOutcome(signal: unknown, ticks: unknown, coverage: u
   if (!Array.isArray(ticks) || !Array.isArray(coverage)) return rejected(!Array.isArray(ticks) ? "INVALID_TICK" : "INVALID_COVERAGE");
   if (ticks.length > TICK_MAX_INPUT_TICKS || coverage.length > TICK_MAX_COVERAGE_SPANS) return rejected("LIMIT_EXCEEDED");
 
-  // Observation window: [start, expires). Ticks at or before `start` (beyond clock margin) never count.
+  // Observation window: (start, expires), additionally bounded by caller-supplied `now`.
+  // The creation margin is evidence-only: crossings inside it remain CLOCK_AMBIGUITY.
   const start = Math.max(0, created - margin);
 
   // Coverage: merge only evidence-source "ok" spans; any non-ok span is remembered for overlap checks.
@@ -101,7 +104,9 @@ export function evaluateTickOutcome(signal: unknown, ticks: unknown, coverage: u
     if (!rec(s) || typeof s['source'] !== "string" || !time(s['fromMsc']) || !time(s['toMsc']) || s['toMsc'] < s['fromMsc']
       || (s['status'] !== "ok" && s['status'] !== "uncertain" && s['status'] !== "failed")) return rejected("INVALID_COVERAGE");
     if (s['source'] !== TICK_EVIDENCE_SOURCE) continue;
-    (s['status'] === "ok" ? ok : bad).push({ from: s['fromMsc'], to: s['toMsc'] });
+    // A claim about future coverage is not observed evidence, including non-ok spans.
+    if (s['fromMsc'] > now) continue;
+    (s['status'] === "ok" ? ok : bad).push({ from: s['fromMsc'], to: Math.min(s['toMsc'], now) });
   }
   ok.sort((a, b) => a.from - b.from);
   let coveredUntil = -1; // last ms continuously covered from `start`
@@ -123,7 +128,7 @@ export function evaluateTickOutcome(signal: unknown, ticks: unknown, coverage: u
     if (prev && (prev.bid !== tick.bid || prev.ask !== tick.ask)) return rejected("CONFLICTING_DUPLICATE");
     byKey.set(key, tick);
   }
-  const usable = Math.min(coveredUntil, expires - 1);
+  const usable = Math.min(coveredUntil, expires - 1, now);
   const timeline = [...byKey.values()].filter((t) => t.timeMsc > start && t.timeMsc <= usable)
     .sort((a, b) => a.timeMsc - b.timeMsc || a.seq - b.seq);
 
@@ -147,9 +152,15 @@ export function evaluateTickOutcome(signal: unknown, ticks: unknown, coverage: u
       // Same-millisecond TP1+SL: ordering unknowable, so SL first (conservative). Worst observed stop quote.
       if (stops.length) {
         const exit = stops.map(quote).reduce((a, b) => (buy ? Math.min(a, b) : Math.max(a, b)));
-        return { ...base, state: "RESOLVED", outcome: "sl", exitPrice: exit, resultR: (buy ? exit - entry : entry - exit) / risk, observedAtMsc: ms };
+        const resultR = (buy ? exit - entry : entry - exit) / risk;
+        // Finite positive quotes can still overflow when divided by a very small risk.
+        // INVALID_TICK here means the observed quote cannot produce a finite R; never clamp it.
+        if (!Number.isFinite(resultR)) return rejected("INVALID_TICK");
+        return { ...base, state: "RESOLVED", outcome: "sl", exitPrice: exit, resultR, observedAtMsc: ms };
       }
-      return { ...base, state: "RESOLVED", outcome: "tp1", exitPrice: tp, resultR: (buy ? tp - entry : entry - tp) / risk, observedAtMsc: ms };
+      const resultR = (buy ? tp - entry : entry - tp) / risk;
+      if (!Number.isFinite(resultR)) return rejected("INVALID_SIGNAL");
+      return { ...base, state: "RESOLVED", outcome: "tp1", exitPrice: tp, resultR, observedAtMsc: ms };
     }
     last = ms;
   }
