@@ -194,7 +194,7 @@ describe("assessCoverage", () => {
   });
   it("does not infer coverage from ticks at window start and end", () => {
     const b = ok({ coverageClaim: "unknown", ticks: [tick(5_000), tick(50_000)] });
-    expect(assessCoverage(mergeTickBatches([b]), W, OPT).state).toBe("UNCERTAIN");
+    expect(assessCoverage(mergeTickBatches([b]), W, OPT)).toMatchObject({ state: "INCOMPLETE", reason: "COVERAGE_GAP" });
     expect(assessCoverage(mergeTickBatches([]), W, OPT)).toMatchObject({ state: "INCOMPLETE", reason: "COVERAGE_GAP" });
   });
   it("requires margin beyond window edges", () => {
