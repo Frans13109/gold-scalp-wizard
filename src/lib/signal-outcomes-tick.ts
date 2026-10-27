@@ -7,6 +7,8 @@
  * and any gap, uncertain span, quiet spell or clock ambiguity yields INCOMPLETE/UNCERTAIN, never a result.
  * Sampled live ticks are not evidence: only source "mt5_tick_history" ticks and spans are used.
  */
+import { at } from "./market";
+
 export const TICK_METHOD = "tick_quote_observation" as const;
 export const TICK_EVIDENCE_SOURCE = "mt5_tick_history" as const;
 export const TICK_MAX_WINDOW_MS = 24 * 60 * 60_000;
@@ -133,10 +135,10 @@ export function evaluateTickOutcome(signal: unknown, ticks: unknown, coverage: u
   let last = start;
   let i = 0;
   while (i < timeline.length) {
-    const ms = timeline[i]!.timeMsc;
+    const ms = at(timeline, i).timeMsc;
     if (ms - last > maxQuiet) return uncertain("QUIET_GAP");
     const group: HistoryTick[] = [];
-    while (i < timeline.length && timeline[i]!.timeMsc === ms) { group.push(timeline[i]!); i++; }
+    while (i < timeline.length && at(timeline, i).timeMsc === ms) { group.push(at(timeline, i)); i++; }
     const stops = group.filter(stopHit), targets = group.filter(targetHit);
     if (stops.length || targets.length) {
       // A crossing that might belong before creation or after expiry cannot be attributed.
