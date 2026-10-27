@@ -251,20 +251,18 @@ describe("tick-aware outcome calculator (Phase 1a, isolated)", () => {
       expect(run(sig(), [...background(T0 - 1000, NOW), hit("BUY", "tp1", NOW)], cov, opts({ nowMsc: NOW })))
         .toMatchObject({ state: "RESOLVED", outcome: "tp1" });
     });
-    it.each(["BUY", "SELL"] as const)("%s extreme gap rejects non-finite R", (side) => {
-      const s = sig(side, { entry: 1e-300, stopLoss: side === "BUY" ? 5e-301 : 1.5e-300, takeProfit1: side === "BUY" ? 2e-300 : 5e-301 });
-      const extreme = side === "BUY" ? tk(NOW, Number.MIN_VALUE, Number.MIN_VALUE) : tk(NOW, 1e308, Number.MAX_VALUE);
-      if (side === "BUY") {
-        // BUY adverse quote remains positive, so the loss is bounded by entry/risk.
-        const tinyRisk = sig("BUY", { entry: 1e100, stopLoss: 1e100 - 2e84, takeProfit1: 1e100 + 2e84 });
-        const result = run(tinyRisk, [tk(NOW, 1, 1)], fullCov(), opts({ maxQuietMs: 100_000 }));
-        expect(result).toMatchObject({ state: "RESOLVED", outcome: "sl", exitPrice: 1 });
-        if (result.state !== "RESOLVED") throw new Error("Expected finite BUY gap result");
-        expect(Number.isFinite(result.resultR)).toBe(true);
-      } else {
-        expect(run(s, [extreme], fullCov(), opts({ maxQuietMs: 100_000 })))
-          .toMatchObject({ state: "REJECTED", reason: "INVALID_TICK" });
-      }
+    it("BUY extreme adverse gap with tiny relative risk stays finite without clamping", () => {
+      // With positive quotes, BUY loss is bounded by entry/risk.
+      const s = sig("BUY", { entry: 1e100, stopLoss: 1e100 - 2e84, takeProfit1: 1e100 + 2e84 });
+      const result = run(s, [tk(NOW, 1, 1)], fullCov(), opts({ maxQuietMs: 100_000 }));
+      expect(result).toMatchObject({ state: "RESOLVED", outcome: "sl", exitPrice: 1, resultR: (1 - s.entry) / (s.entry - s.stopLoss) });
+      if (result.state !== "RESOLVED") throw new Error("Expected finite BUY gap result");
+      expect(Number.isFinite(result.resultR)).toBe(true);
+    });
+    it("SELL extreme adverse gap rejects non-finite R", () => {
+      const s = sig("SELL", { entry: 1e-300, stopLoss: 1.5e-300, takeProfit1: 5e-301 });
+      expect(run(s, [tk(NOW, 1e308, Number.MAX_VALUE)], fullCov(), opts({ maxQuietMs: 100_000 })))
+        .toMatchObject({ state: "REJECTED", reason: "INVALID_TICK" });
     });
     it.each(["BUY", "SELL"] as const)("%s subnormal positive risk yields finite exact-level R", (side) => {
       const unit = Number.MIN_VALUE;
@@ -275,13 +273,16 @@ describe("tick-aware outcome calculator (Phase 1a, isolated)", () => {
           .toMatchObject({ state: "RESOLVED", outcome, resultR: outcome === "sl" ? -1 : 1 });
       }
     });
-    it.each(["BUY", "SELL"] as const)("%s non-finite target R is rejected before resolution", (side) => {
-      const s = sig(side, side === "BUY"
-        ? { entry: 1e-300, stopLoss: 5e-301, takeProfit1: Number.MAX_VALUE }
-        : { entry: 1e100, stopLoss: 1e100 + 2e84, takeProfit1: Number.MIN_VALUE });
-      // SELL with positive quotes has a bounded reward; exercise invalid geometry instead of claiming overflow.
-      const input = side === "SELL" ? { ...s, stopLoss: s.entry } : s;
-      expect(run(input, [], fullCov())).toMatchObject({ state: "REJECTED", reason: "INVALID_SIGNAL" });
+    it("BUY non-finite target R is rejected before resolution", () => {
+      const s = sig("BUY", { entry: 1e-300, stopLoss: 5e-301, takeProfit1: Number.MAX_VALUE });
+      expect(run(s, [], fullCov())).toMatchObject({ state: "REJECTED", reason: "INVALID_SIGNAL" });
+    });
+    it("SELL extreme positive target distance retains finite R", () => {
+      const s = sig("SELL", { entry: 1e100, stopLoss: 1e100 + 2e84, takeProfit1: Number.MIN_VALUE });
+      const result = run(s, [tk(NOW, Number.MIN_VALUE, Number.MIN_VALUE)], fullCov(), opts({ maxQuietMs: 100_000 }));
+      expect(result).toMatchObject({ state: "RESOLVED", outcome: "tp1", resultR: (s.entry - s.takeProfit1) / (s.stopLoss - s.entry) });
+      if (result.state !== "RESOLVED") throw new Error("Expected finite SELL target result");
+      expect(Number.isFinite(result.resultR)).toBe(true);
     });
     it.each([NaN, Infinity, -Infinity, 0, -1, "4000", null])("malformed gap quote %s never yields a result", (price) => {
       expect(run(sig(), [{ ...tk(NOW, 4000, 4000.2), bid: price }]))
@@ -330,7 +331,7 @@ describe("tick-aware outcome calculator (Phase 1a, isolated)", () => {
       const result = run(sig(), ticks, cov, opts({ nowMsc: NOW }));
       expect(result).toMatchObject({ state: "RESOLVED", outcome: "sl", unvalidated: true, method: "tick_quote_observation" });
       expect(run(sig(), [...ticks, ...ticks].reverse(), cov, opts({ nowMsc: NOW }))).toEqual(result);
-      expect(run(sig(), [...ticks, { ...hit("BUY", "tp1", NOW), bid: 4011 }], cov, opts({ nowMsc: NOW })))
+      expect(run(sig(), [...ticks, { ...hit("BUY", "tp1", NOW), bid: 4010.1 }], cov, opts({ nowMsc: NOW })))
         .toMatchObject({ state: "REJECTED", reason: "CONFLICTING_DUPLICATE" });
     });
     it("malformed or conflicting evidence after an early hit remains rejected", () => {
