@@ -130,8 +130,8 @@ export function validateDisposableDbTarget(input: unknown): DbTargetGuardResult 
   if (rest.includes("@")) return reject("CREDENTIALS_IN_URL");
   if (rest.includes("?")) return reject("QUERY_PARAMETERS");
   if (rest.includes("#")) return reject("URL_FRAGMENT");
-  if (/[^A-Za-z0-9.:/\[\]_-]/.test(rest)) return reject("UNSAFE_URL_CHARACTERS");
   if (rest.includes(",")) return reject("MULTIPLE_HOSTS");
+  if (/[^A-Za-z0-9.:/\[\]_-]/.test(rest)) return reject("UNSAFE_URL_CHARACTERS");
   const slash = rest.indexOf("/");
   const authority = slash === -1 ? rest : rest.slice(0, slash);
   const path = slash === -1 ? "" : rest.slice(slash + 1);
