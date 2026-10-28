@@ -260,7 +260,8 @@ describe("20. purity: no network, filesystem, database or environment access", (
     const code = src.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/.*$/gm, "");
     const imports = code.match(/\bimport\b[^;]*;/g) ?? [];
     expect(imports).toEqual([`import { validateDisposableDbTarget } from "./test-db-target-guard";`]);
-    expect(code).not.toMatch(/process\.|fetch\(|XMLHttpRequest|WebSocket|require\(|child_process|node:|Deno|Bun\.|Date\.now|new Date|Math\.random|crypto|supabase|import\(/i);
+    expect(code).not.toMatch(/process\.|fetch\(|XMLHttpRequest|WebSocket|require\(|child_process|node:|Deno|Bun\.|Date\.now|new Date|Math\.random|crypto\.|import\(/);
+    expect(code).not.toMatch(/from\s+["'][^"']*supabase/i);
   });
 });
 

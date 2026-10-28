@@ -228,7 +228,7 @@ function checkManifest(m: Snap | undefined, t: TargetFacts): { processKind: stri
   if (o["provisioningOwner"] !== PROVISIONING_OWNER || o["teardownOwner"] !== TEARDOWN_OWNER) throw new Fail("MANIFEST_INVALID_OWNER");
   const ids = [env, inst, ref, pid, nonce];
   if (new Set(ids).size !== ids.length) throw new Fail("MANIFEST_IDENTIFIER_REUSE");
-  return { processKind: p["kind"], processId: pid };
+  return { processKind: p["kind"] as string, processId: pid };
 }
 
 function checkTeardown(td: Snap | undefined, t: TargetFacts, proc: { processKind: string; processId: string }): void {
