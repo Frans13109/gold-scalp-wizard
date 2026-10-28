@@ -272,6 +272,7 @@ function checkTeardown(td: Snap | undefined, t: TargetFacts, proc: { processKind
 
 export function evaluatePgHarnessGate(input: unknown): PgHarnessGateResult {
   let stage: PgGateStage = "INPUT";
+  if (typeof input !== "object" || input === null || Array.isArray(input)) return blocked(stage, "NOT_AN_OBJECT");
   try {
     const snap = snapshot(input, 0, { n: MAX_NODES });
     const top = exact(snap, TOP_KEYS, "NOT_AN_OBJECT");
