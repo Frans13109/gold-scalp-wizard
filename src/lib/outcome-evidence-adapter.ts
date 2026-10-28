@@ -9,7 +9,7 @@
  */
 import { mapSavedSignalToTickInput, type SignalOutcomeInputFailureReason } from "./signal-outcome-input";
 import { TICK_HISTORY_MAX_BATCHES, TICK_HISTORY_MAX_TICKS, TICK_HISTORY_SOURCE, TICK_HISTORY_SYMBOL } from "./tick-history-contract";
-import { buildCanonicalManifest, CANONICAL_VERSION } from "./tick-evidence-manifest";
+import { CANONICAL_VERSION } from "./tick-evidence-manifest";
 
 export const EVIDENCE_ADAPTER_VERSION = 1 as const;
 
@@ -31,7 +31,7 @@ export type EvidenceAdapterRejectReason =
   | "INVALID_BATCH_ROW" | "DUPLICATE_BATCH_PK" | "DUPLICATE_BATCH_ID" | "UNSUPPORTED_CANONICAL_VERSION"
   | "INVALID_OBSERVATION_ROWS" | "INVALID_OBSERVATION_ROW" | "UNKNOWN_BATCH" | "DUPLICATE_ORDINAL"
   | "MISSING_ORDINAL" | "TICK_COUNT_MISMATCH" | "TOO_MANY_TICKS" | "INVALID_PRICE" | "PRECISION_LOSS"
-  | "INVALID_INTEGER" | "NON_CANONICAL_BATCH";
+  | "INVALID_INTEGER" | "INVALID_BATCH_WINDOW" | "CROSSED_QUOTE" | "TICK_OUTSIDE_WINDOW";
 
 /** Exactly the batch shape Phase 2B validateTickBatch accepts. */
 export interface AdaptedRawBatch {
@@ -157,6 +157,7 @@ export function adaptStoredEvidence(input: unknown): EvidenceAdapterResult {
       ints.push(c.value);
     }
     const [fromMsc, toMsc, fetchedAtMsc, count] = ints as [number, number, number, number];
+    if (toMsc < fromMsc) return rej("INVALID_BATCH_WINDOW", { batchIndex: i });
     if (count > TICK_HISTORY_MAX_TICKS) return rej("TOO_MANY_TICKS", { batchIndex: i });
     if (byPk.has(pk)) return rej("DUPLICATE_BATCH_PK", { batchIndex: i });
     // Same batch ID twice (even identical) is ambiguous without collector identity: fail closed.
@@ -187,18 +188,19 @@ export function adaptStoredEvidence(input: unknown): EvidenceAdapterResult {
     const bid = toExactPrice(o["bid"]), ask = toExactPrice(o["ask"]);
     if (!bid.ok) return rej(bid.reason === "PRECISION_LOSS" ? "PRECISION_LOSS" : "INVALID_PRICE", { observationIndex: i, field: "bid" });
     if (!ask.ok) return rej(ask.reason === "PRECISION_LOSS" ? "PRECISION_LOSS" : "INVALID_PRICE", { observationIndex: i, field: "ask" });
+    if (ask.value < bid.value) return rej("CROSSED_QUOTE", { observationIndex: i });
+    if (t.value < b.header.fromMsc || t.value > b.header.toMsc) return rej("TICK_OUTSIDE_WINDOW", { observationIndex: i });
     b.slots[ord.value] = { timeMsc: t.value, bid: bid.value, ask: ask.value };
   }
 
-  // 4. Rebuild batches; every ordinal 0..count-1 must be present; canonicalisable (Phase 2D).
+  // 4. Rebuild batches; every ordinal 0..count-1 must be present. Full Phase 2B validation (with clock policy)
+  //    and Phase 2D canonicalisation are re-run by evaluateOutcomeContract itself.
   const rawBatches: AdaptedRawBatch[] = [];
   let tickCount = 0;
   for (let i = 0; i < order.length; i++) {
     const b = order[i]!;
     const ticks: AdaptedRawBatch["ticks"] = [];
     for (const s of b.slots) { if (!s) return rej("MISSING_ORDINAL", { batchIndex: i }); ticks.push(s); }
-    if (buildCanonicalManifest({ ...b.header, observations: ticks }).state !== "CANONICAL")
-      return rej("NON_CANONICAL_BATCH", { batchIndex: i });
     rawBatches.push({ ...b.header, ticks });
     tickCount += ticks.length;
   }
