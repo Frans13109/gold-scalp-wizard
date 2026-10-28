@@ -82,7 +82,8 @@ describe("missing bid or ask / malformed evidence", () => {
 
 describe("incomplete historical windows", () => {
   it("window not closed", () => {
-    expect(run(buyRow(), [batch(bg, { toMsc: T0 + WIN - 1 + M, fetchedAtMsc: T0 + WIN + M })], { ...OPT, nowMsc: T0 + WIN + M })).toMatchObject({ state: "INCOMPLETE" });
+    expect(run(buyRow(), [batch(bg, { toMsc: T0 + WIN - 1 + M, fetchedAtMsc: T0 + WIN + M })], { ...OPT, nowMsc: T0 + WIN + M - 2 }))
+      .toMatchObject({ ...SAFETY, state: "INCOMPLETE", reason: "WINDOW_NOT_CLOSED" });
   });
   it("partial claim → COVERAGE_GAP", () => {
     expect(run(buyRow(), [batch(bg, { coverageClaim: "partial" })])).toMatchObject({ state: "INCOMPLETE", reason: "COVERAGE_GAP" });
@@ -132,7 +133,7 @@ describe("creation and expiry boundary precision", () => {
   });
   it("hits before creation or at/after expiry are ignored", () => {
     expect(run(buyRow(), [batch([q(-1, 2010), ...bg, q(WIN, 2010)])], { ...OPT, clockMarginMs: 1, maxQuietMs: 600_000 }))
-      .toMatchObject({ state: "INCOMPLETE" });
+      .toMatchObject({ ...SAFETY, state: "CANDIDATE_OBSERVATION", observation: "NO_LEVEL_OBSERVED", atMsc: null, observedQuote: null });
   });
   it("nonzero sub-ms creation precision rejected, not truncated", () => {
     expect(run(buyRow({ created_at: "2027-01-15T10:00:00.000500Z" }), [batch(bg)]))
@@ -167,7 +168,9 @@ describe("unverified provenance and no fabricated outcomes", () => {
   it("no-hit window is NO_LEVEL_OBSERVED, not an expiry outcome", () => {
     const res = run(buyRow(), [batch(bg)]);
     expect(res).toMatchObject({ ...SAFETY, state: "CANDIDATE_OBSERVATION", observation: "NO_LEVEL_OBSERVED", atMsc: null, observedQuote: null });
-    expect(JSON.stringify(res)).not.toMatch(/expired|win|loss|profit|fill|resultR|VERIFIED"/i);
+    expect(JSON.stringify(res)).not.toMatch(/expired|win|loss|profit|fill|resultR/i);
+    expect(res.coverage).toBe("NOT_VERIFIED");
+    expect(Object.values(res)).not.toContain("VERIFIED");
   });
   it("results carry no R, profit or fill fields and never say VERIFIED", () => {
     for (const res of [run(buyRow(), [batch([...bg, q(300_000, 2010)])]), run(sellRow(), [batch([...bg, q(300_000, 2004.8, 2005)])])]) {
