@@ -17,7 +17,6 @@
  *   finalizationEligible false. Errors carry reason codes only — never credentials, secrets or raw data.
  */
 import {
-  assessCoverage as _unusedAssessCoverage, // eslint-disable-line @typescript-eslint/no-unused-vars
   mergeTickBatches,
   validateTickBatch,
   type BatchRejectReason,
