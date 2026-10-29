@@ -292,6 +292,21 @@ describe("no fabricated outcomes or eligibility promotion", () => {
     }
   });
   it("adapted result is not an evaluation", () => {
-    expect(JSON.stringify(adapt(input()))).not.toMatch(/TP1_QUOTE|SL_QUOTE|NO_LEVEL|expired|win|loss|profit|fill/i);
+    const r = adapt(input());
+    expect(r.state).toBe("ADAPTED");
+    expect(r).toMatchObject({
+      unvalidated: true,
+      provenance: "NOT_ESTABLISHED",
+      coverage: "NOT_VERIFIED",
+      finalizationEligible: false,
+      productionEligible: false,
+    });
+    if (r.state === "ADAPTED") {
+      expect(r.savedSignal).toBeDefined();
+      expect(r.rawBatches).toBeDefined();
+    }
+    for (const k of ["outcome", "exit_price", "result_r", "profit", "fill", "win", "loss", "finalizedAt"]) {
+      expect(r).not.toHaveProperty(k);
+    }
   });
 });
