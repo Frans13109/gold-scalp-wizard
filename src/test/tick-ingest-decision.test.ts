@@ -82,7 +82,15 @@ describe("new batch candidate", () => {
     expect(r).toMatchObject({ ...SAFETY, state: "NEW_BATCH_CANDIDATE", requestId: "req-1", batchId: "batch-1", overlap: "NONE" });
   });
   it("non-overlapping stored batch → overlap NONE", () => {
-    const other = rawBatch("batch-0", { fromMsc: 500_000, toMsc: 900_000, fetchedAtMsc: 950_000 });
+    const other = rawBatch("batch-0", {
+      fromMsc: 500_000,
+      toMsc: 900_000,
+      fetchedAtMsc: 950_000,
+      ticks: [
+        { timeMsc: 500_000, bid: 1999.0, ask: 1999.2 },
+        { timeMsc: 900_000, bid: 1999.5, ask: 1999.7 },
+      ],
+    });
     const r = decide("req-1", rawBatch("batch-1"), { batches: [storedBatch(other)] });
     expect(r).toMatchObject({ state: "NEW_BATCH_CANDIDATE", overlap: "NONE" });
   });
@@ -229,8 +237,24 @@ describe("determinism and immutability", () => {
     expect(decideTickIngest(mk())).toEqual(decideTickIngest(mk()));
   });
   it("stored record order does not change the decision", () => {
-    const a = storedBatch(rawBatch("batch-a", { fromMsc: 500_000, toMsc: 900_000, fetchedAtMsc: 950_000 }));
-    const b = storedBatch(rawBatch("batch-b", { fromMsc: 1_300_000, toMsc: 1_400_000, fetchedAtMsc: 1_450_000 }));
+    const a = storedBatch(rawBatch("batch-a", {
+      fromMsc: 500_000,
+      toMsc: 900_000,
+      fetchedAtMsc: 950_000,
+      ticks: [
+        { timeMsc: 500_000, bid: 1999.0, ask: 1999.2 },
+        { timeMsc: 900_000, bid: 1999.5, ask: 1999.7 },
+      ],
+    }));
+    const b = storedBatch(rawBatch("batch-b", {
+      fromMsc: 1_300_000,
+      toMsc: 1_400_000,
+      fetchedAtMsc: 1_450_000,
+      ticks: [
+        { timeMsc: 1_300_000, bid: 2002.0, ask: 2002.2 },
+        { timeMsc: 1_400_000, bid: 2002.5, ask: 2002.7 },
+      ],
+    }));
     const r1 = decide("req-1", rawBatch("batch-1"), { batches: [a, b] });
     const r2 = decide("req-1", rawBatch("batch-1"), { batches: [b, a] });
     expect(r1).toEqual(r2);
